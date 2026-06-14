@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wiki Number Guesser 🌐</title>
+    <title>The Number Ranker 🎯</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,6 +23,8 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.6);
             max-width: 500px;
             width: 90%;
+            height: auto;
+            box-sizing: border-box;
         }
         h1 { color: #38bdf8; margin-top: 0; font-size: 1.8rem; margin-bottom: 5px; }
         h3 { color: #94a3b8; font-weight: 400; margin-top: 5px; margin-bottom: 20px; }
@@ -47,6 +49,8 @@
             font-size: 1.1rem;
             line-height: 1.6;
             margin-bottom: 25px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .blank {
             color: #fbbf24;
@@ -97,15 +101,15 @@
 <body>
 
     <div class="game-card">
-        <h1>🌐 Wiki Number Guesser</h1>
-        <h3 id="article-title">Loading a mystery Wikipedia topic...</h3>
+        <h1>🎯 Trivia Number Guesser</h1>
+        <h3 id="fact-type">Loading clean trivia fact...</h3>
         
         <div class="stats-bar">
             <div>🔥 Streak: <span id="current-streak" class="streak">0</span></div>
             <div>🏆 Best: <span id="best-streak" class="best-streak">0</span></div>
         </div>
 
-        <div class="clue-box" id="clue-text">Finding an interesting fact...</div>
+        <div class="clue-box" id="clue-text">Connecting to server...</div>
 
         <div id="game-controls" style="display: none;">
             <input type="number" id="guess-input" placeholder="Your numeric guess">
@@ -117,217 +121,127 @@
         
         <div class="feedback" id="feedback-text"></div>
         <br>
-        <button id="next-btn" class="btn-next" onclick="loadWikiRound()" style="display: none;">Play Next Round ➡️</button>
+        <button id="next-btn" class="btn-next" onclick="loadNewFact()" style="display: none;">Play Next Round ➡️</button>
     </div>
 
     <script>
-let targetNumber = 0;
-let originalText = "";
-let attempts = 0;
-let currentStreak = 0;
-let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
+        let targetNumber = 0;
+        let originalText = "";
+        let attempts = 0;
+        let currentStreak = 0;
+        let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
 
-// Hardcoded fun backups to guarantee the game NEVER crashes if the network fails
-const backupClues = [
-    { title: "Apollo 11", text: "Apollo 11 was the American spaceflight that first landed humans on the Moon in the year 1969.", number: 1969 },
-    { title: "The Eiffel Tower", text: "The Eiffel Tower is a wrought-iron lattice tower in Paris that stands 330 meters tall.", number: 330 },
-    { title: "Mount Everest", text: "Mount Everest is Earth's highest mountain above sea level, with an official elevation of 8848 meters.", number: 8848 },
-    { title: "The Great Pyramid of Giza", text: "The Great Pyramid of Giza is the oldest of the Seven Wonders of the Ancient World, built over a period of 20 years.", number: 20 },
-    { title: "Pac-Man", text: "Pac-Man is an iconic arcade video game released by Bandai Namco in the year 1980.", number: 1980 }
-];
+        window.onload = function() {
+            updateStreakUI();
+            loadNewFact();
+        };
 
-window.onload = function() {
-    updateStreakUI();
-    loadWikiRound();
-};
+        document.getElementById('guess-input').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') checkGuess();
+        });
 
-document.getElementById('guess-input').addEventListener('keyup', function(e) {
-    if (e.key === 'Enter') checkGuess();
-});
+        function updateStreakUI() {
+            document.getElementById('current-streak').innerText = currentStreak;
+            document.getElementById('best-streak').innerText = bestStreak;
+        }
 
-function updateStreakUI() {
-    document.getElementById('current-streak').innerText = currentStreak;
-    document.getElementById('best-streak').innerText = bestStreak;
-}
+        async function loadNewFact() {
+            attempts = 0;
+            document.getElementById('game-controls').style.display = "none";
+            document.getElementById('next-btn').style.display = "none";
+            document.getElementById('feedback-text').innerText = "";
+            document.getElementById('guess-input').disabled = false;
+            document.getElementById('guess-input').value = "";
+            document.getElementById('fact-type').innerText = "Generating Fact...";
+            document.getElementById('clue-text').innerText = "Loading data...";
 
-async function loadWikiRound() {
-    attempts = 0;
-    document.getElementById('game-controls').style.display = "none";
-    document.getElementById('next-btn').style.display = "none";
-    document.getElementById('feedback-text').innerText = "";
-    document.getElementById('guess-input').disabled = false;
-    document.getElementById('guess-input').value = "";
-    document.getElementById('article-title').innerText = "Scanning Wikipedia...";
-    document.getElementById('clue-text').innerText = "Extracting a numeric fact...";
+            const modes = ['trivia', 'year', 'math'];
+            const randomMode = modes[Math.floor(Math.random() * modes.length)];
 
-    try {
-        // We appended &callback=jsonp_callback to cleanly bypass all browser CORS blockages
-        const url = 'https://wikipedia.org';
-        
-        // JSONP requests must be loaded via a script element tag instead of the fetch function
-        const script = document.createElement('script');
-        script.src = url;
-        
-        // Define the global handler function that Wikipedia will respond to
-        window.jsonp_callback = function(data) {
-            // Clean up the script tag from the document head layout
-            document.head.removeChild(script);
-            delete window.jsonp_callback;
+            try {
+                const response = await fetch(`https://numbersapi.com{randomMode}?json`);
+                const data = await response.json();
+                
+                targetNumber = data.number;
+                originalText = data.text;
 
-            if (!data || !data.query || !data.query.pages) {
-                loadBackupRound();
-                return;
-            }
-
-            const pages = data.query.pages;
-            let extract = "";
-            let title = "";
-
-            for (let key in pages) {
-                if (pages[key].extract && pages[key].title) {
-                    extract = pages[key].extract;
-                    title = pages[key].title;
-                    break;
+                if (isNaN(targetNumber) || targetNumber < 0 || targetNumber > 3000) {
+                    loadNewFact();
+                    return;
                 }
+
+                const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
+                const maskedText = originalText.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
+
+                document.getElementById('fact-type').innerText = `Category: ${randomMode.toUpperCase()}`;
+                document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
+                document.getElementById('game-controls').style.display = "block";
+                document.getElementById('guess-input').focus();
+
+            } catch (error) {
+                document.getElementById('clue-text').innerText = "Connection timed out. Retrying link...";
+                setTimeout(loadNewFact, 2000);
             }
+        }
 
-            const matches = extract.match(/\b\d{2,5}\b/g);
+        function checkGuess() {
+            const inputField = document.getElementById('guess-input');
+            const userGuess = parseInt(inputField.value);
+            const feedback = document.getElementById('feedback-text');
 
-            // Re-roll automatically if text is too short or lacks numbers
-            if (!matches || matches.length === 0 || extract.length < 40) {
-                loadWikiRound(); 
+            if (isNaN(userGuess)) {
+                feedback.innerText = "❌ Enter a valid number!";
+                feedback.style.color = "#ef4444";
                 return;
             }
 
-            const randomMatch = matches[Math.floor(Math.random() * matches.length)];
-            targetNumber = parseInt(randomMatch);
-            originalText = extract;
+            attempts++;
 
-            const safeRegex = new RegExp(`\\b${randomMatch}\\b`, 'g');
-            const maskedText = extract.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
+            if (userGuess === targetNumber) {
+                currentStreak++;
+                if (currentStreak > bestStreak) {
+                    bestStreak = currentStreak;
+                    localStorage.setItem('wiki_best_streak', bestStreak);
+                }
+                updateStreakUI();
 
-            document.getElementById('article-title').innerText = `Topic: ${title}`;
-            document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
-            document.getElementById('game-controls').style.display = "block";
-            document.getElementById('guess-input').focus();
-        };
-
-        // Handle structural load errors gracefully
-        script.onerror = function() {
-            document.head.removeChild(script);
-            delete window.jsonp_callback;
-            loadBackupRound();
-        };
-
-        document.head.appendChild(script);
-
-    } catch (error) {
-        loadBackupRound();
-    }
-}
-
-
-        // Catch standalone digits ranging from 2 to 5 numbers long
-        const matches = extract.match(/\b\d{2,5}\b/g);
-
-        if (!matches || matches.length === 0 || extract.length < 40) {
-            loadWikiRound(); // Clean re-roll if article lacks digits or text is too short
-            return;
+                feedback.innerText = `🎉 Splendid! The answer was ${targetNumber}. Found in ${attempts} tries!`;
+                feedback.style.color = "#22c55e";
+                endRound();
+            } else if (userGuess < targetNumber) {
+                feedback.innerText = `📈 Higher than ${userGuess}!`;
+                feedback.style.color = "#38bdf8";
+                clearInput();
+            } else {
+                feedback.innerText = `📉 Lower than ${userGuess}!`;
+                feedback.style.color = "#f43f5e";
+                clearInput();
+            }
         }
 
-        const randomMatch = matches[Math.floor(Math.random() * matches.length)];
-        targetNumber = parseInt(randomMatch);
-        originalText = extract;
+        function giveUp() {
+            currentStreak = 0;
+            updateStreakUI();
 
-        // Escape regex flags cleanly to insert our custom layout mask
-        const safeRegex = new RegExp(`\\b${randomMatch}\\b`, 'g');
-        const maskedText = extract.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
-
-        document.getElementById('article-title').innerText = `Topic: ${title}`;
-        document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
-        document.getElementById('game-controls').style.display = "block";
-        document.getElementById('guess-input').focus();
-
-    } catch (error) {
-        console.warn("Switching to Offline Backup Deck:", error);
-        loadBackupRound();
-    }
-}
-
-function loadBackupRound() {
-    const randomPick = backupClues[Math.floor(Math.random() * backupClues.length)];
-    targetNumber = randomPick.number;
-    originalText = randomPick.text;
-
-    const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
-    const maskedText = originalText.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
-
-    document.getElementById('article-title').innerText = `Topic: ${randomPick.title} (Local)`;
-    document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
-    document.getElementById('game-controls').style.display = "block";
-    document.getElementById('guess-input').focus();
-}
-
-function checkGuess() {
-    const inputField = document.getElementById('guess-input');
-    const userGuess = parseInt(inputField.value);
-    const feedback = document.getElementById('feedback-text');
-
-    if (isNaN(userGuess)) {
-        feedback.innerText = "❌ Enter a valid number!";
-        feedback.style.color = "#ef4444";
-        return;
-    }
-
-    attempts++;
-
-    if (userGuess === targetNumber) {
-        currentStreak++;
-        if (currentStreak > bestStreak) {
-            bestStreak = currentStreak;
-            localStorage.setItem('wiki_best_streak', bestStreak);
+            const feedback = document.getElementById('feedback-text');
+            feedback.innerText = `🏳️ You gave up! The correct answer was ${targetNumber}.`;
+            feedback.style.color = "#ef4444";
+            endRound();
         }
-        updateStreakUI();
 
-        feedback.innerText = `🎉 Splendid! The answer was ${targetNumber}. Found in ${attempts} tries!`;
-        feedback.style.color = "#22c55e";
-        endRound();
-    } else if (userGuess < targetNumber) {
-        feedback.innerText = `📈 Higher than ${userGuess}!`;
-        feedback.style.color = "#38bdf8";
-        clearInput();
-    } else {
-        feedback.innerText = `📉 Lower than ${userGuess}!`;
-        feedback.style.color = "#f43f5e";
-        clearInput();
-    }
-}
+        function endRound() {
+            document.getElementById('guess-input').disabled = true;
+            document.getElementById('game-controls').style.display = "none";
+            document.getElementById('clue-text').innerText = originalText;
+            document.getElementById('next-btn').style.display = "block";
+            document.getElementById('next-btn').focus();
+        }
 
-function giveUp() {
-    currentStreak = 0;
-    updateStreakUI();
-
-    const feedback = document.getElementById('feedback-text');
-    feedback.innerText = `🏳️ You gave up! The correct answer was ${targetNumber}.`;
-    feedback.style.color = "#ef4444";
-    endRound();
-}
-
-function endRound() {
-    document.getElementById('guess-input').disabled = true;
-    document.getElementById('game-controls').style.display = "none";
-    document.getElementById('clue-text').innerText = originalText;
-    document.getElementById('next-btn').style.display = "block";
-    document.getElementById('next-btn').focus();
-}
-
-function clearInput() {
-    const inputField = document.getElementById('guess-input');
-    inputField.value = "";
-    inputField.focus();
-}
-
-</script>
-
+        function clearInput() {
+            const inputField = document.getElementById('guess-input');
+            inputField.value = "";
+            inputField.focus();
+        }
+    </script>
 </body>
 </html>
