@@ -161,34 +161,71 @@ async function loadWikiRound() {
     document.getElementById('clue-text').innerText = "Extracting a numeric fact...";
 
     try {
-        // Safe, production-grade URL parameters to handle CORS
+        // We appended &callback=jsonp_callback to cleanly bypass all browser CORS blockages
         const url = 'https://wikipedia.org';
         
-        // Setup a 4-second network timeout so the loader doesn't hang forever
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        // JSONP requests must be loaded via a script element tag instead of the fetch function
+        const script = document.createElement('script');
+        script.src = url;
         
-        const data = await res.json();
-        
-        // Bulletproof parsing to safely read nested dynamic objects
-        if (!data || !data.query || !data.query.pages) {
-            throw new Error("Invalid API payload architecture");
-        }
+        // Define the global handler function that Wikipedia will respond to
+        window.jsonp_callback = function(data) {
+            // Clean up the script tag from the document head layout
+            document.head.removeChild(script);
+            delete window.jsonp_callback;
 
-        const pages = data.query.pages;
-        let extract = "";
-        let title = "";
-
-        for (let key in pages) {
-            if (pages[key].extract && pages[key].title) {
-                extract = pages[key].extract;
-                title = pages[key].title;
-                break;
+            if (!data || !data.query || !data.query.pages) {
+                loadBackupRound();
+                return;
             }
-        }
+
+            const pages = data.query.pages;
+            let extract = "";
+            let title = "";
+
+            for (let key in pages) {
+                if (pages[key].extract && pages[key].title) {
+                    extract = pages[key].extract;
+                    title = pages[key].title;
+                    break;
+                }
+            }
+
+            const matches = extract.match(/\b\d{2,5}\b/g);
+
+            // Re-roll automatically if text is too short or lacks numbers
+            if (!matches || matches.length === 0 || extract.length < 40) {
+                loadWikiRound(); 
+                return;
+            }
+
+            const randomMatch = matches[Math.floor(Math.random() * matches.length)];
+            targetNumber = parseInt(randomMatch);
+            originalText = extract;
+
+            const safeRegex = new RegExp(`\\b${randomMatch}\\b`, 'g');
+            const maskedText = extract.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
+
+            document.getElementById('article-title').innerText = `Topic: ${title}`;
+            document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
+            document.getElementById('game-controls').style.display = "block";
+            document.getElementById('guess-input').focus();
+        };
+
+        // Handle structural load errors gracefully
+        script.onerror = function() {
+            document.head.removeChild(script);
+            delete window.jsonp_callback;
+            loadBackupRound();
+        };
+
+        document.head.appendChild(script);
+
+    } catch (error) {
+        loadBackupRound();
+    }
+}
+
 
         // Catch standalone digits ranging from 2 to 5 numbers long
         const matches = extract.match(/\b\d{2,5}\b/g);
