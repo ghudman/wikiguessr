@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wiki Number Daily</title>
+<title>Wiki Number Quest</title>
 
 <style>
 body {
@@ -15,27 +15,16 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    overflow: hidden;
 }
 
 .card {
     width: 92%;
-    max-width: 650px;
+    max-width: 700px;
     background: #111827;
     border-radius: 18px;
     padding: 22px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    transform: scale(1);
-    transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.card.pop {
-    transform: scale(1.03);
-}
-
-.card.fade {
-    opacity: 0;
-    transform: translateY(20px);
+    transition: all 0.25s ease;
 }
 
 h1 {
@@ -85,9 +74,23 @@ input {
     text-align: center;
 }
 
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 10px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.primary { background: #38bdf8; }
+.danger { background: #ef4444; color: white; }
+.next { background: #22c55e; display: none; }
+
 .feedback {
     min-height: 22px;
-    margin-top: 8px;
+    margin-top: 10px;
     font-weight: bold;
     text-align: center;
 }
@@ -104,8 +107,9 @@ input {
 <body>
 
 <div class="card" id="card">
-    <h1>📱 Wiki Daily Number</h1>
-    <div class="sub">Tap / Swipe / Enter to play</div>
+
+    <h1>📱 Wiki Number Quest</h1>
+    <div class="sub">GeoGuessr-style Wikipedia challenge</div>
 
     <div class="stats">
         <div>🔥 Streak: <span id="streak">0</span></div>
@@ -115,33 +119,38 @@ input {
     <div class="box">
         <div id="title">Loading...</div>
         <hr style="border:1px solid #1f2937;">
-        <div id="clue">Loading Wikipedia...</div>
+        <div id="clue">Fetching Wikipedia...</div>
     </div>
 
     <input id="guess" type="number" placeholder="Guess the number..." />
 
+    <button class="primary" onclick="check()">Submit</button>
+    <button class="danger" onclick="giveUp()">Give Up</button>
+    <button class="next" id="nextBtn" onclick="nextRound()">Next ➜</button>
+
     <div class="feedback" id="feedback"></div>
     <div class="hint" id="hint"></div>
+
 </div>
 
 <script>
+
 let targetNumber = 0;
 let streak = 0;
 let best = localStorage.getItem("best_streak") || 0;
+let attempts = 0;
 
 document.getElementById("best").textContent = best;
 
 /* -------------------------
-   DAILY CHALLENGE (NO BACKEND)
+   HAPTICS
 ------------------------- */
-
-function getDailySeed() {
-    const d = new Date();
-    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+function vibrate(p) {
+    if (navigator.vibrate) navigator.vibrate(p);
 }
 
 /* -------------------------
-   WIKI ENGINE
+   WIKI FETCH
 ------------------------- */
 
 async function fetchWiki() {
@@ -155,24 +164,38 @@ async function fetchWiki() {
 function extractNumbers(text) {
     const nums = text.match(/\b\d{1,6}\b/g);
     if (!nums) return [];
-
     return nums.map(n => parseInt(n)).filter(n => n >= 10);
 }
 
-/* smart pick */
+/* -------------------------
+   SMART ENGINE v2
+------------------------- */
+
 function score(n) {
     let s = 0;
-    if (n >= 1800 && n <= 2100) s += 100;
-    if (n >= 10 && n < 100000) s += 20;
+    if (n >= 1700 && n <= 2100) s += 120;
+    if (n >= 100000) s += 60;
+    if (n >= 10 && n < 100000) s += 30;
     return s;
 }
 
 function pick(nums) {
     const sorted = nums.sort((a,b)=>score(b)-score(a));
-    return sorted[Math.floor(Math.random() * Math.min(4, sorted.length))];
+    const top = sorted.slice(0, Math.min(5, sorted.length));
+    return top[Math.floor(Math.random() * top.length)];
 }
 
-/* preload */
+function hint(n) {
+    if (n >= 1700 && n <= 2100) return "📅 Likely a YEAR";
+    if (n >= 100000) return "👥 Likely POPULATION / LARGE COUNT";
+    if (n >= 100) return "📏 Likely MEASUREMENT / DISTANCE";
+    return "🔢 General number";
+}
+
+/* -------------------------
+   PRELOAD SYSTEM
+------------------------- */
+
 let buffer = [];
 
 async function preload() {
@@ -195,43 +218,48 @@ async function preload() {
 }
 
 /* -------------------------
-   GAME FLOW
+   GEO TRANSITION
 ------------------------- */
 
-const card = document.getElementById("card");
+function animateCard() {
+    const c = document.getElementById("card");
+    c.style.opacity = "0";
+    c.style.transform = "translateY(15px) scale(0.98)";
 
-function vibrate(pattern) {
-    if (navigator.vibrate) navigator.vibrate(pattern);
+    requestAnimationFrame(() => {
+        c.style.transition = "all 0.25s ease";
+        c.style.opacity = "1";
+        c.style.transform = "translateY(0) scale(1)";
+    });
 }
 
+/* -------------------------
+   LOAD ROUND
+------------------------- */
+
 function load() {
-    card.classList.add("fade");
+    const article = buffer.shift();
 
-    setTimeout(() => {
-        let article = buffer.shift();
-        if (!article) return setTimeout(load, 400);
+    if (!article) return setTimeout(load, 400);
 
-        targetNumber = article.number;
+    targetNumber = article.number;
+    attempts = 0;
 
-        const masked = article.text.replace(
-            new RegExp(`\\b${targetNumber}\\b`),
-            "<span class='blank'>[ ? ]</span>"
-        );
+    const masked = article.text.replace(
+        new RegExp(`\\b${targetNumber}\\b`),
+        "<span class='blank'>[ ? ]</span>"
+    );
 
-        document.getElementById("title").textContent = article.title;
-        document.getElementById("clue").innerHTML = masked;
+    document.getElementById("title").textContent = article.title;
+    document.getElementById("clue").innerHTML = masked;
 
-        document.getElementById("guess").value = "";
-        document.getElementById("feedback").textContent = "";
-        document.getElementById("hint").textContent = "";
+    document.getElementById("guess").value = "";
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("hint").textContent = "";
+    document.getElementById("nextBtn").style.display = "none";
 
-        preload();
-
-        card.classList.remove("fade");
-        card.classList.add("pop");
-
-        setTimeout(() => card.classList.remove("pop"), 200);
-    }, 200);
+    animateCard();
+    preload();
 }
 
 /* -------------------------
@@ -243,14 +271,16 @@ function updateStats() {
     document.getElementById("best").textContent = best;
 }
 
-let attempts = 0;
-
 function check() {
     const g = parseInt(document.getElementById("guess").value);
     const fb = document.getElementById("feedback");
-    const hint = document.getElementById("hint");
 
-    if (isNaN(g)) return;
+    if (isNaN(g)) {
+        fb.textContent = "Enter a number";
+        fb.style.color = "#ef4444";
+        vibrate(40);
+        return;
+    }
 
     attempts++;
 
@@ -259,6 +289,7 @@ function check() {
 
     if (g === targetNumber) {
         streak++;
+
         if (streak > best) {
             best = streak;
             localStorage.setItem("best_streak", best);
@@ -267,11 +298,10 @@ function check() {
         fb.textContent = "🔥 Correct!";
         fb.style.color = "#22c55e";
 
-        vibrate(150);
+        vibrate([80, 40, 80]);
 
         updateStats();
-
-        setTimeout(load, 600);
+        document.getElementById("nextBtn").style.display = "block";
         return;
     }
 
@@ -279,56 +309,43 @@ function check() {
     fb.style.color = g < targetNumber ? "#38bdf8" : "#f43f5e";
 
     if (attempts >= 2) {
-        if (targetNumber >= 1800 && targetNumber <= 2100)
-            hint.textContent = "Hint: likely a YEAR 📅";
-        else if (targetNumber >= 10000)
-            hint.textContent = "Hint: likely a COUNT 👥";
-        else
-            hint.textContent = "Hint: likely a MEASUREMENT 📏";
+        document.getElementById("hint").textContent = hint(targetNumber);
     }
 
-    if (close) {
-        fb.textContent += " 🔥 VERY CLOSE!";
-        vibrate(50);
-    }
+    if (close) vibrate(25);
+    else vibrate(10);
 }
 
-/* give up */
+/* -------------------------
+   GIVE UP
+------------------------- */
+
 function giveUp() {
     streak = 0;
     updateStats();
 
     document.getElementById("feedback").textContent =
-        `It was ${targetNumber}`;
+        `💀 It was ${targetNumber}`;
 
-    vibrate([100,50,100]);
+    vibrate([120,60,120]);
 
-    setTimeout(load, 800);
+    document.getElementById("nextBtn").style.display = "block";
 }
 
 /* -------------------------
-   INPUT + MOBILE CONTROLS
+   NEXT ROUND
+------------------------- */
+
+function nextRound() {
+    load();
+}
+
+/* -------------------------
+   INPUT
 ------------------------- */
 
 document.getElementById("guess").addEventListener("keydown", e => {
     if (e.key === "Enter") check();
-});
-
-/* swipe to submit / skip */
-let touchStartY = 0;
-
-document.addEventListener("touchstart", e => {
-    touchStartY = e.changedTouches[0].screenY;
-});
-
-document.addEventListener("touchend", e => {
-    const dy = e.changedTouches[0].screenY - touchStartY;
-
-    if (Math.abs(dy) < 30) {
-        check(); // tap = submit
-    } else if (dy < -80) {
-        giveUp(); // swipe up = give up
-    }
 });
 
 /* -------------------------
@@ -339,8 +356,10 @@ window.onload = async function () {
     updateStats();
     await preload();
     await preload();
+    await preload();
     load();
 };
+
 </script>
 
 </body>
