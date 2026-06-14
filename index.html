@@ -3,127 +3,145 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wikipedia Number Guesser</title>
+<title>Wiki Number Quest</title>
 
 <style>
 body {
-    font-family: sans-serif;
+    margin: 0;
+    font-family: system-ui, sans-serif;
     background: #0b0f19;
     color: #e2e8f0;
-    height: 100vh;
-    margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
+    min-height: 100vh;
 }
 
-.game-card {
-    background: #1e293b;
-    padding: 30px;
-    border-radius: 16px;
-    max-width: 600px;
+.card {
     width: 92%;
+    max-width: 650px;
+    background: #111827;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
-h1 { color: #38bdf8; margin-bottom: 10px; }
-h3 { color: #94a3b8; font-weight: 400; }
+h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    color: #38bdf8;
+}
 
-.clue-box {
+.sub {
+    color: #94a3b8;
+    margin-bottom: 15px;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px 0;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+}
+
+.box {
     background: #0f172a;
-    padding: 18px;
-    border-radius: 10px;
-    margin: 20px 0;
-    text-align: left;
+    padding: 16px;
+    border-radius: 12px;
+    margin: 15px 0;
     line-height: 1.6;
+    text-align: left;
 }
 
 .blank {
     background: #334155;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: 6px;
     color: #fbbf24;
     font-weight: bold;
 }
 
 input {
-    width: 80%;
+    width: 100%;
     padding: 12px;
     font-size: 1.1rem;
-    text-align: center;
-    border-radius: 8px;
-    border: 2px solid #475569;
+    border-radius: 10px;
+    border: none;
     background: #0f172a;
     color: white;
+    text-align: center;
+    margin-top: 10px;
 }
 
 button {
-    padding: 10px 16px;
-    margin: 6px;
-    border-radius: 8px;
+    padding: 10px 14px;
     border: none;
+    border-radius: 10px;
     font-weight: bold;
     cursor: pointer;
+    margin-top: 8px;
 }
 
-.btn-submit { background: #38bdf8; }
-.btn-giveup { background: #ef4444; color: white; }
-.btn-next { background: #22c55e; color: white; width: 90%; }
+.row {
+    display: flex;
+    gap: 10px;
+}
+
+.primary { background: #38bdf8; flex: 1; }
+.danger { background: #ef4444; color: white; }
+.next { background: #22c55e; width: 100%; }
 
 .feedback {
     min-height: 24px;
     margin-top: 10px;
     font-weight: bold;
 }
-
-.stats {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 10px;
-    font-size: 0.9rem;
-}
 </style>
 </head>
 
 <body>
 
-<div class="game-card">
-    <h1>📚 Wiki Number Guesser</h1>
-    <h3 id="title">Loading...</h3>
+<div class="card">
+    <h1>📚 Wiki Number Quest</h1>
+    <div class="sub" id="mode">Infinite Mode</div>
 
     <div class="stats">
         <div>🔥 Streak: <span id="streak">0</span></div>
         <div>🏆 Best: <span id="best">0</span></div>
     </div>
 
-    <div class="clue-box" id="clue">Loading article...</div>
+    <div class="box">
+        <div id="title">Loading...</div>
+        <hr style="border:1px solid #1f2937; margin:10px 0;">
+        <div id="clue">Fetching Wikipedia...</div>
+    </div>
 
-    <input id="guess" type="number" placeholder="Guess the number" />
+    <input id="guess" type="number" placeholder="Guess the number..." />
 
-    <div>
-        <button class="btn-submit" onclick="checkGuess()">Submit</button>
-        <button class="btn-giveup" onclick="giveUp()">Give Up</button>
+    <div class="row">
+        <button class="primary" onclick="checkGuess()">Submit</button>
+        <button class="danger" onclick="giveUp()">Give Up</button>
     </div>
 
     <div class="feedback" id="feedback"></div>
 
-    <button class="btn-next" id="next" onclick="loadArticle()" style="display:none;">
-        Next Article
+    <button class="next" id="next" onclick="nextRound()" style="display:none;">
+        Next Round ➜
     </button>
 </div>
 
 <script>
 let targetNumber = 0;
-let currentText = "";
 let streak = 0;
 let best = localStorage.getItem("best_streak") || 0;
-
 document.getElementById("best").textContent = best;
 
-function updateStats() {
-    document.getElementById("streak").textContent = streak;
-    document.getElementById("best").textContent = best;
-}
+/* -------------------------
+   SMART WIKI ENGINE
+------------------------- */
+
+let buffer = [];
 
 async function fetchWiki() {
     const res = await fetch(
@@ -134,70 +152,106 @@ async function fetchWiki() {
 }
 
 function extractNumbers(text) {
-    return text.match(/\b(18\d{2}|19\d{2}|20\d{2}|\d{2,5})\b/g);
+    const matches = text.match(/\b\d{1,6}\b/g);
+    if (!matches) return [];
+
+    return matches
+        .map(n => parseInt(n))
+        .filter(n => n >= 10);
 }
 
-async function loadArticle() {
+function score(n) {
+    let s = 0;
+    if (n >= 1800 && n <= 2100) s += 100; // years
+    if (n >= 10 && n < 100000) s += 20;
+    if (n > 500000) s -= 50;
+    return s;
+}
+
+function pickNumber(nums) {
+    const sorted = nums.sort((a,b) => score(b) - score(a));
+    return sorted[Math.floor(Math.random() * Math.min(5, sorted.length))];
+}
+
+async function preload() {
+    let data, nums, chosen;
+
+    for (let i = 0; i < 5; i++) {
+        data = await fetchWiki();
+        nums = extractNumbers(data.extract || "");
+        if (!nums.length) continue;
+
+        chosen = pickNumber(nums);
+        if (!chosen) continue;
+
+        buffer.push({
+            title: data.title,
+            text: data.extract,
+            number: chosen
+        });
+
+        if (buffer.length > 3) buffer.shift();
+    }
+}
+
+/* -------------------------
+   GAME FLOW
+------------------------- */
+
+function load() {
     document.getElementById("feedback").textContent = "";
     document.getElementById("next").style.display = "none";
 
-    let data;
-    let numbers;
+    let article = buffer.shift();
 
-    document.getElementById("clue").textContent = "Loading...";
+    if (!article) {
+        setTimeout(load, 500);
+        return;
+    }
 
-    do {
-        data = await fetchWiki();
-        numbers = extractNumbers(data.extract);
-    } while (!numbers || numbers.length === 0);
+    targetNumber = article.number;
 
-    targetNumber = parseInt(
-        numbers[Math.floor(Math.random() * numbers.length)],
-        10
-    );
-
-    currentText = data.extract;
-
-    const masked = currentText.replace(
+    const masked = article.text.replace(
         new RegExp(`\\b${targetNumber}\\b`),
         "<span class='blank'>[ ? ]</span>"
     );
 
-    document.getElementById("title").textContent = data.title;
+    document.getElementById("title").textContent = article.title;
     document.getElementById("clue").innerHTML = masked;
 
     document.getElementById("guess").value = "";
+
+    preload();
 }
 
 function checkGuess() {
     const guess = parseInt(document.getElementById("guess").value);
-    const feedback = document.getElementById("feedback");
+    const fb = document.getElementById("feedback");
 
     if (isNaN(guess)) {
-        feedback.textContent = "Enter a number!";
-        feedback.style.color = "#ef4444";
+        fb.textContent = "Enter a number";
+        fb.style.color = "#ef4444";
         return;
     }
 
     if (guess === targetNumber) {
         streak++;
-
         if (streak > best) {
             best = streak;
             localStorage.setItem("best_streak", best);
         }
 
-        feedback.textContent = `Correct! It was ${targetNumber}`;
-        feedback.style.color = "#22c55e";
+        fb.textContent = "Correct! 🎉";
+        fb.style.color = "#22c55e";
 
         document.getElementById("next").style.display = "block";
         updateStats();
     } else if (guess < targetNumber) {
-        feedback.textContent = "Higher 📈";
-        feedback.style.color = "#38bdf8";
+        fb.textContent = "Higher 📈";
+        fb.style.color = "#38bdf8";
     } else {
-        feedback.textContent = "Lower 📉";
-        feedback.style.color = "#f43f5e";
+        fb.textContent = "Lower 📉";
+        fb.style.color = "#f43f5e";
     }
 }
 
@@ -208,12 +262,30 @@ function giveUp() {
     document.getElementById("feedback").textContent =
         `It was ${targetNumber}`;
 
-    document.getElementById("feedback").style.color = "#ef4444";
-
     document.getElementById("next").style.display = "block";
 }
 
-window.onload = loadArticle;
+function nextRound() {
+    load();
+}
+
+function updateStats() {
+    document.getElementById("streak").textContent = streak;
+    document.getElementById("best").textContent = best;
+}
+
+/* -------------------------
+   START
+------------------------- */
+
+window.onload = async function () {
+    updateStats();
+    document.getElementById("mode").textContent = "Infinite Wikipedia Mode";
+
+    await preload();
+    await preload();
+    load();
+};
 </script>
 
 </body>
