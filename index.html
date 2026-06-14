@@ -125,123 +125,163 @@
     </div>
 
     <script>
-        let targetNumber = 0;
-        let originalText = "";
-        let attempts = 0;
-        let currentStreak = 0;
-        let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
+let targetNumber = 0;
+let originalText = "";
+let attempts = 0;
+let currentStreak = 0;
+let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
+let lastIndexes = [];
 
-        window.onload = function() {
-            updateStreakUI();
-            loadNewFact();
-        };
+const factDeck = [
+    { category: "HISTORY", text: "Apollo 11 was the American spaceflight that first landed humans on the Moon in the year 1969.", number: 1969 },
+    { category: "GEOGRAPHY", text: "The Eiffel Tower is a wrought-iron lattice tower in Paris that stands 330 meters tall.", number: 330 },
+    { category: "NATURE", text: "Mount Everest is Earth's highest mountain above sea level, with an official elevation of 8848 meters.", number: 8848 },
+    { category: "HISTORY", text: "The Great Pyramid of Giza is the oldest of the Seven Wonders of the Ancient World, built over a period of 20 years.", number: 20 },
+    { category: "GAMING", text: "Pac-Man is an iconic arcade video game released by Bandai Namco in the year 1980.", number: 1980 },
+    { category: "SCIENCE", text: "Light travels at an incredible speed of approximately 300000 kilometers per second.", number: 300000 },
+    { category: "GEOGRAPHY", text: "The Nile River is traditionally considered the longest river in the world, stretching 6650 kilometers.", number: 6650 },
+    { category: "SPACE", text: "The planet Mars takes roughly 687 earth days to complete one full orbit around the Sun.", number: 687 },
+    { category: "HISTORY", text: "The first modern Olympic Games were held in Athens, Greece, in the year 1896.", number: 1896 },
+    { category: "NATURE", text: "An adult giant panda spends up to 12 hours a day munching on bamboo to meet its dietary needs.", number: 12 },
+    { category: "SCIENCE", text: "Water boils at 212 degrees Fahrenheit under standard atmospheric pressure conditions.", number: 212 },
+    { category: "AVIATION", text: "The Wright brothers made their first historic controlled powered airplane flights in the year 1903.", number: 1903 },
+    { category: "POP CULTURE", text: "The classic movie Star Wars: A New Hope originally debuted in cinemas in the year 1977.", number: 1977 },
+    { category: "HUMAN BODY", text: "The normal core body temperature for a healthy adult is typically 98 degrees Fahrenheit.", number: 98 },
+    { category: "SPACE", text: "The Voyager 1 spacecraft was launched into space by NASA in the year 1977.", number: 1977 },
+    { category: "GEOGRAPHY", text: "The United States of America is politically divided into a total of 50 individual states.", number: 50 },
+    { category: "HISTORY", text: "The construction of the iconic Colosseum in Rome was completely finished in the year 80 AD.", number: 80 },
+    { category: "SCIENCE", text: "The planet Saturn has a massive, prominent ring system consisting of 7 main rings.", number: 7 },
+    { category: "MATH", text: "A perfect right angle is composed of exactly 90 degrees.", number: 90 }
+];
 
-        document.getElementById('guess-input').addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') checkGuess();
-        });
+window.onload = function () {
+    updateStreakUI();
+    loadNewFact();
+};
 
-        function updateStreakUI() {
-            document.getElementById('current-streak').innerText = currentStreak;
-            document.getElementById('best-streak').innerText = bestStreak;
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('guess-input').addEventListener('keyup', function (e) {
+        if (e.key === 'Enter') {
+            checkGuess();
+        }
+    });
+});
+
+function updateStreakUI() {
+    document.getElementById('current-streak').textContent = currentStreak;
+    document.getElementById('best-streak').textContent = bestStreak;
+}
+
+function loadNewFact() {
+    attempts = 0;
+
+    document.getElementById('game-controls').style.display = "block";
+    document.getElementById('next-btn').style.display = "none";
+    document.getElementById('feedback-text').textContent = "";
+
+    const input = document.getElementById('guess-input');
+    input.disabled = false;
+    input.value = "";
+
+    let randomIndex;
+
+    do {
+        randomIndex = Math.floor(Math.random() * factDeck.length);
+    } while (lastIndexes.includes(randomIndex) && lastIndexes.length < 5);
+
+    lastIndexes.push(randomIndex);
+
+    if (lastIndexes.length > 5) {
+        lastIndexes.shift();
+    }
+
+    const selectedFact = factDeck[randomIndex];
+
+    targetNumber = selectedFact.number;
+    originalText = selectedFact.text;
+
+    const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
+
+    const maskedText = originalText.replace(
+        safeRegex,
+        "<span class='blank'>[ ? ]</span>"
+    );
+
+    document.getElementById('fact-type').textContent =
+        `Category: ${selectedFact.category}`;
+
+    document.getElementById('clue-text').innerHTML =
+        `"${maskedText}"`;
+}
+
+function checkGuess() {
+    const inputField = document.getElementById('guess-input');
+    const feedback = document.getElementById('feedback-text');
+
+    const userGuess = parseInt(inputField.value, 10);
+
+    if (isNaN(userGuess)) {
+        feedback.textContent = "❌ Enter a valid number!";
+        feedback.style.color = "#ef4444";
+        return;
+    }
+
+    attempts++;
+
+    if (userGuess === targetNumber) {
+        currentStreak++;
+
+        if (currentStreak > bestStreak) {
+            bestStreak = currentStreak;
+            localStorage.setItem('wiki_best_streak', bestStreak);
         }
 
-        async function loadNewFact() {
-            attempts = 0;
-            document.getElementById('game-controls').style.display = "none";
-            document.getElementById('next-btn').style.display = "none";
-            document.getElementById('feedback-text').innerText = "";
-            document.getElementById('guess-input').disabled = false;
-            document.getElementById('guess-input').value = "";
-            document.getElementById('fact-type').innerText = "Generating Fact...";
-            document.getElementById('clue-text').innerText = "Loading data...";
+        updateStreakUI();
 
-            const modes = ['trivia', 'year', 'math'];
-            const randomMode = modes[Math.floor(Math.random() * modes.length)];
+        feedback.textContent =
+            `🎉 Correct! The answer was ${targetNumber}. Found in ${attempts} tries!`;
 
-            try {
-                const response = await fetch(`https://numbersapi.com{randomMode}?json`);
-                const data = await response.json();
-                
-                targetNumber = data.number;
-                originalText = data.text;
+        feedback.style.color = "#22c55e";
 
-                if (isNaN(targetNumber) || targetNumber < 0 || targetNumber > 3000) {
-                    loadNewFact();
-                    return;
-                }
+        endRound();
+    }
+    else if (userGuess < targetNumber) {
+        feedback.textContent = `📈 Higher than ${userGuess}!`;
+        feedback.style.color = "#38bdf8";
+        clearInput();
+    }
+    else {
+        feedback.textContent = `📉 Lower than ${userGuess}!`;
+        feedback.style.color = "#f43f5e";
+        clearInput();
+    }
+}
 
-                const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
-                const maskedText = originalText.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
+function giveUp() {
+    currentStreak = 0;
+    updateStreakUI();
 
-                document.getElementById('fact-type').innerText = `Category: ${randomMode.toUpperCase()}`;
-                document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
-                document.getElementById('game-controls').style.display = "block";
-                document.getElementById('guess-input').focus();
+    const feedback = document.getElementById('feedback-text');
 
-            } catch (error) {
-                document.getElementById('clue-text').innerText = "Connection timed out. Retrying link...";
-                setTimeout(loadNewFact, 2000);
-            }
-        }
+    feedback.textContent =
+        `🏳️ You gave up! The answer was ${targetNumber}.`;
 
-        function checkGuess() {
-            const inputField = document.getElementById('guess-input');
-            const userGuess = parseInt(inputField.value);
-            const feedback = document.getElementById('feedback-text');
+    feedback.style.color = "#ef4444";
 
-            if (isNaN(userGuess)) {
-                feedback.innerText = "❌ Enter a valid number!";
-                feedback.style.color = "#ef4444";
-                return;
-            }
+    endRound();
+}
 
-            attempts++;
+function clearInput() {
+    const input = document.getElementById('guess-input');
+    input.value = "";
+    input.focus();
+}
 
-            if (userGuess === targetNumber) {
-                currentStreak++;
-                if (currentStreak > bestStreak) {
-                    bestStreak = currentStreak;
-                    localStorage.setItem('wiki_best_streak', bestStreak);
-                }
-                updateStreakUI();
-
-                feedback.innerText = `🎉 Splendid! The answer was ${targetNumber}. Found in ${attempts} tries!`;
-                feedback.style.color = "#22c55e";
-                endRound();
-            } else if (userGuess < targetNumber) {
-                feedback.innerText = `📈 Higher than ${userGuess}!`;
-                feedback.style.color = "#38bdf8";
-                clearInput();
-            } else {
-                feedback.innerText = `📉 Lower than ${userGuess}!`;
-                feedback.style.color = "#f43f5e";
-                clearInput();
-            }
-        }
-
-        function giveUp() {
-            currentStreak = 0;
-            updateStreakUI();
-
-            const feedback = document.getElementById('feedback-text');
-            feedback.innerText = `🏳️ You gave up! The correct answer was ${targetNumber}.`;
-            feedback.style.color = "#ef4444";
-            endRound();
-        }
-
-        function endRound() {
-            document.getElementById('guess-input').disabled = true;
-            document.getElementById('game-controls').style.display = "none";
-            document.getElementById('clue-text').innerText = originalText;
-            document.getElementById('next-btn').style.display = "block";
-            document.getElementById('next-btn').focus();
-        }
-
-        function clearInput() {
-            const inputField = document.getElementById('guess-input');
-            inputField.value = "";
-            inputField.focus();
-        }
-    </script>
+function endRound() {
+    document.getElementById('guess-input').disabled = true;
+    document.getElementById('game-controls').style.display = "none";
+    document.getElementById('next-btn').style.display = "inline-block";
+}
+</script>
 </body>
 </html>
