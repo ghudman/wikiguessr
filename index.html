@@ -121,20 +121,26 @@
     </div>
 
     <script>
-
-    let targetNumber = 0;
+let targetNumber = 0;
 let originalText = "";
 let attempts = 0;
 let currentStreak = 0;
 let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
 
-// Run immediately when page loads
+// Hardcoded fun backups to guarantee the game NEVER crashes if the network fails
+const backupClues = [
+    { title: "Apollo 11", text: "Apollo 11 was the American spaceflight that first landed humans on the Moon in the year 1969.", number: 1969 },
+    { title: "The Eiffel Tower", text: "The Eiffel Tower is a wrought-iron lattice tower in Paris that stands 330 meters tall.", number: 330 },
+    { title: "Mount Everest", text: "Mount Everest is Earth's highest mountain above sea level, with an official elevation of 8848 meters.", number: 8848 },
+    { title: "The Great Pyramid of Giza", text: "The Great Pyramid of Giza is the oldest of the Seven Wonders of the Ancient World, built over a period of 20 years.", number: 20 },
+    { title: "Pac-Man", text: "Pac-Man is an iconic arcade video game released by Bandai Namco in the year 1980.", number: 1980 }
+];
+
 window.onload = function() {
     updateStreakUI();
     loadWikiRound();
 };
 
-// Allow pressing Enter key to submit a guess
 document.getElementById('guess-input').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') checkGuess();
 });
@@ -155,35 +161,48 @@ async function loadWikiRound() {
     document.getElementById('clue-text').innerText = "Extracting a numeric fact...";
 
     try {
-        // Utilizing Wikipedia's fully open Action API query string to bypass CORS & User-Agent blocks
+        // Safe, production-grade URL parameters to handle CORS
         const url = 'https://wikipedia.org';
         
-        const res = await fetch(url);
+        // Setup a 4-second network timeout so the loader doesn't hang forever
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         const data = await res.json();
         
-        // Extract the page data from the nested JSON object
-        const pages = data.query.pages;
-        const pageId = Object.keys(pages)[0];
-        const article = pages[pageId];
-        
-        const title = article.title;
-        const extract = article.extract;
+        // Bulletproof parsing to safely read nested dynamic objects
+        if (!data || !data.query || !data.query.pages) {
+            throw new Error("Invalid API payload architecture");
+        }
 
-        // Upgraded regex captures standalone digits ranging from 2 to 5 numbers long
+        const pages = data.query.pages;
+        let extract = "";
+        let title = "";
+
+        for (let key in pages) {
+            if (pages[key].extract && pages[key].title) {
+                extract = pages[key].extract;
+                title = pages[key].title;
+                break;
+            }
+        }
+
+        // Catch standalone digits ranging from 2 to 5 numbers long
         const matches = extract.match(/\b\d{2,5}\b/g);
 
-        if (!matches || matches.length === 0) {
-            // Re-roll automatically if the chosen article contains zero digits
-            loadWikiRound();
+        if (!matches || matches.length === 0 || extract.length < 40) {
+            loadWikiRound(); // Clean re-roll if article lacks digits or text is too short
             return;
         }
 
-        // Pick a random number out of the found array
         const randomMatch = matches[Math.floor(Math.random() * matches.length)];
         targetNumber = parseInt(randomMatch);
         originalText = extract;
 
-        // Use a safe regex substitution to replace only the exact chosen number string
+        // Escape regex flags cleanly to insert our custom layout mask
         const safeRegex = new RegExp(`\\b${randomMatch}\\b`, 'g');
         const maskedText = extract.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
 
@@ -193,10 +212,23 @@ async function loadWikiRound() {
         document.getElementById('guess-input').focus();
 
     } catch (error) {
-        console.error("Wiki Fetch Error: ", error);
-        document.getElementById('clue-text').innerText = "Failed loading Wikipedia data. Let's try again.";
-        document.getElementById('next-btn').style.display = "block";
+        console.warn("Switching to Offline Backup Deck:", error);
+        loadBackupRound();
     }
+}
+
+function loadBackupRound() {
+    const randomPick = backupClues[Math.floor(Math.random() * backupClues.length)];
+    targetNumber = randomPick.number;
+    originalText = randomPick.text;
+
+    const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
+    const maskedText = originalText.replace(safeRegex, "<span class='blank'>[ ? ]</span>");
+
+    document.getElementById('article-title').innerText = `Topic: ${randomPick.title} (Local)`;
+    document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
+    document.getElementById('game-controls').style.display = "block";
+    document.getElementById('guess-input').focus();
 }
 
 function checkGuess() {
