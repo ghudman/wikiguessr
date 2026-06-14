@@ -1,287 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Number Ranker 🎯</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0b0f19;
-            color: #e2e8f0;
-            height: 100vh;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-        .game-card {
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-            max-width: 500px;
-            width: 90%;
-            height: auto;
-            box-sizing: border-box;
-        }
-        h1 { color: #38bdf8; margin-top: 0; font-size: 1.8rem; margin-bottom: 5px; }
-        h3 { color: #94a3b8; font-weight: 400; margin-top: 5px; margin-bottom: 20px; }
-        .stats-bar {
-            display: flex;
-            justify-content: space-around;
-            background: #0f172a;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
-            font-weight: bold;
-        }
-        .streak { color: #22c55e; }
-        .best-streak { color: #eab308; }
-        .clue-box {
-            background: #0f172a;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #38bdf8;
-            text-align: left;
-            font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 25px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        .blank {
-            color: #fbbf24;
-            font-weight: bold;
-            background: #334155;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        input {
-            width: 70%;
-            padding: 12px;
-            font-size: 1.2rem;
-            border-radius: 8px;
-            border: 2px solid #475569;
-            background: #0f172a;
-            color: white;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-        input:focus { border-color: #38bdf8; outline: none; }
-        .btn-container {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        button {
-            border: none;
-            padding: 12px 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        .btn-submit { background: #38bdf8; color: #0f172a; }
-        .btn-giveup { background: #ef4444; color: white; }
-        .btn-next { background: #22c55e; color: white; width: 80%; margin: 0 auto; }
-        .feedback {
-            font-size: 1.2rem;
-            font-weight: bold;
-            min-height: 28px;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wikipedia Number Guesser</title>
 
-    <div class="game-card">
-        <h1>🎯 Trivia Number Guesser</h1>
-        <h3 id="fact-type">Loading clean trivia fact...</h3>
-        
-        <div class="stats-bar">
-            <div>🔥 Streak: <span id="current-streak" class="streak">0</span></div>
-            <div>🏆 Best: <span id="best-streak" class="best-streak">0</span></div>
-        </div>
-
-        <div class="clue-box" id="clue-text">Connecting to server...</div>
-
-        <div id="game-controls" style="display: none;">
-            <input type="number" id="guess-input" placeholder="Your numeric guess">
-            <div class="btn-container">
-                <button class="btn-submit" onclick="checkGuess()">Submit Guess</button>
-                <button class="btn-giveup" onclick="giveUp()">Give Up 🏳️</button>
-            </div>
-        </div>
-        
-        <div class="feedback" id="feedback-text"></div>
-        <br>
-        <button id="next-btn" class="btn-next" onclick="loadNewFact()" style="display: none;">Play Next Round ➡️</button>
-    </div>
-
-    <script>
-let targetNumber = 0;
-let originalText = "";
-let attempts = 0;
-let currentStreak = 0;
-let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
-let lastIndexes = [];
-
-const factDeck = [
-    { category: "HISTORY", text: "Apollo 11 was the American spaceflight that first landed humans on the Moon in the year 1969.", number: 1969 },
-    { category: "GEOGRAPHY", text: "The Eiffel Tower is a wrought-iron lattice tower in Paris that stands 330 meters tall.", number: 330 },
-    { category: "NATURE", text: "Mount Everest is Earth's highest mountain above sea level, with an official elevation of 8848 meters.", number: 8848 },
-    { category: "HISTORY", text: "The Great Pyramid of Giza is the oldest of the Seven Wonders of the Ancient World, built over a period of 20 years.", number: 20 },
-    { category: "GAMING", text: "Pac-Man is an iconic arcade video game released by Bandai Namco in the year 1980.", number: 1980 },
-    { category: "SCIENCE", text: "Light travels at an incredible speed of approximately 300000 kilometers per second.", number: 300000 },
-    { category: "GEOGRAPHY", text: "The Nile River is traditionally considered the longest river in the world, stretching 6650 kilometers.", number: 6650 },
-    { category: "SPACE", text: "The planet Mars takes roughly 687 earth days to complete one full orbit around the Sun.", number: 687 },
-    { category: "HISTORY", text: "The first modern Olympic Games were held in Athens, Greece, in the year 1896.", number: 1896 },
-    { category: "NATURE", text: "An adult giant panda spends up to 12 hours a day munching on bamboo to meet its dietary needs.", number: 12 },
-    { category: "SCIENCE", text: "Water boils at 212 degrees Fahrenheit under standard atmospheric pressure conditions.", number: 212 },
-    { category: "AVIATION", text: "The Wright brothers made their first historic controlled powered airplane flights in the year 1903.", number: 1903 },
-    { category: "POP CULTURE", text: "The classic movie Star Wars: A New Hope originally debuted in cinemas in the year 1977.", number: 1977 },
-    { category: "HUMAN BODY", text: "The normal core body temperature for a healthy adult is typically 98 degrees Fahrenheit.", number: 98 },
-    { category: "SPACE", text: "The Voyager 1 spacecraft was launched into space by NASA in the year 1977.", number: 1977 },
-    { category: "GEOGRAPHY", text: "The United States of America is politically divided into a total of 50 individual states.", number: 50 },
-    { category: "HISTORY", text: "The construction of the iconic Colosseum in Rome was completely finished in the year 80 AD.", number: 80 },
-    { category: "SCIENCE", text: "The planet Saturn has a massive, prominent ring system consisting of 7 main rings.", number: 7 },
-    { category: "MATH", text: "A perfect right angle is composed of exactly 90 degrees.", number: 90 }
-];
-
-window.onload = function () {
-    updateStreakUI();
-    loadNewFact();
-};
-
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('guess-input').addEventListener('keyup', function (e) {
-        if (e.key === 'Enter') {
-            checkGuess();
-        }
-    });
-});
-
-function updateStreakUI() {
-    document.getElementById('current-streak').textContent = currentStreak;
-    document.getElementById('best-streak').textContent = bestStreak;
+<style>
+body {
+    font-family: sans-serif;
+    background: #0b0f19;
+    color: #e2e8f0;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
 }
 
-function loadNewFact() {
-    attempts = 0;
+.game-card {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 92%;
+}
 
-    document.getElementById('game-controls').style.display = "block";
-    document.getElementById('next-btn').style.display = "none";
-    document.getElementById('feedback-text').textContent = "";
+h1 { color: #38bdf8; margin-bottom: 10px; }
+h3 { color: #94a3b8; font-weight: 400; }
 
-    const input = document.getElementById('guess-input');
-    input.disabled = false;
-    input.value = "";
+.clue-box {
+    background: #0f172a;
+    padding: 18px;
+    border-radius: 10px;
+    margin: 20px 0;
+    text-align: left;
+    line-height: 1.6;
+}
 
-    let randomIndex;
+.blank {
+    background: #334155;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #fbbf24;
+    font-weight: bold;
+}
+
+input {
+    width: 80%;
+    padding: 12px;
+    font-size: 1.1rem;
+    text-align: center;
+    border-radius: 8px;
+    border: 2px solid #475569;
+    background: #0f172a;
+    color: white;
+}
+
+button {
+    padding: 10px 16px;
+    margin: 6px;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-submit { background: #38bdf8; }
+.btn-giveup { background: #ef4444; color: white; }
+.btn-next { background: #22c55e; color: white; width: 90%; }
+
+.feedback {
+    min-height: 24px;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+</style>
+</head>
+
+<body>
+
+<div class="game-card">
+    <h1>📚 Wiki Number Guesser</h1>
+    <h3 id="title">Loading...</h3>
+
+    <div class="stats">
+        <div>🔥 Streak: <span id="streak">0</span></div>
+        <div>🏆 Best: <span id="best">0</span></div>
+    </div>
+
+    <div class="clue-box" id="clue">Loading article...</div>
+
+    <input id="guess" type="number" placeholder="Guess the number" />
+
+    <div>
+        <button class="btn-submit" onclick="checkGuess()">Submit</button>
+        <button class="btn-giveup" onclick="giveUp()">Give Up</button>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <button class="btn-next" id="next" onclick="loadArticle()" style="display:none;">
+        Next Article
+    </button>
+</div>
+
+<script>
+let targetNumber = 0;
+let currentText = "";
+let streak = 0;
+let best = localStorage.getItem("best_streak") || 0;
+
+document.getElementById("best").textContent = best;
+
+function updateStats() {
+    document.getElementById("streak").textContent = streak;
+    document.getElementById("best").textContent = best;
+}
+
+async function fetchWiki() {
+    const res = await fetch(
+        "https://en.wikipedia.org/api/rest_v1/page/random/summary",
+        { cache: "no-store" }
+    );
+    return await res.json();
+}
+
+function extractNumbers(text) {
+    return text.match(/\b(18\d{2}|19\d{2}|20\d{2}|\d{2,5})\b/g);
+}
+
+async function loadArticle() {
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("next").style.display = "none";
+
+    let data;
+    let numbers;
+
+    document.getElementById("clue").textContent = "Loading...";
 
     do {
-        randomIndex = Math.floor(Math.random() * factDeck.length);
-    } while (lastIndexes.includes(randomIndex) && lastIndexes.length < 5);
+        data = await fetchWiki();
+        numbers = extractNumbers(data.extract);
+    } while (!numbers || numbers.length === 0);
 
-    lastIndexes.push(randomIndex);
+    targetNumber = parseInt(
+        numbers[Math.floor(Math.random() * numbers.length)],
+        10
+    );
 
-    if (lastIndexes.length > 5) {
-        lastIndexes.shift();
-    }
+    currentText = data.extract;
 
-    const selectedFact = factDeck[randomIndex];
-
-    targetNumber = selectedFact.number;
-    originalText = selectedFact.text;
-
-    const safeRegex = new RegExp(`\\b${targetNumber}\\b`, 'g');
-
-    const maskedText = originalText.replace(
-        safeRegex,
+    const masked = currentText.replace(
+        new RegExp(`\\b${targetNumber}\\b`),
         "<span class='blank'>[ ? ]</span>"
     );
 
-    document.getElementById('fact-type').textContent =
-        `Category: ${selectedFact.category}`;
+    document.getElementById("title").textContent = data.title;
+    document.getElementById("clue").innerHTML = masked;
 
-    document.getElementById('clue-text').innerHTML =
-        `"${maskedText}"`;
+    document.getElementById("guess").value = "";
 }
 
 function checkGuess() {
-    const inputField = document.getElementById('guess-input');
-    const feedback = document.getElementById('feedback-text');
+    const guess = parseInt(document.getElementById("guess").value);
+    const feedback = document.getElementById("feedback");
 
-    const userGuess = parseInt(inputField.value, 10);
-
-    if (isNaN(userGuess)) {
-        feedback.textContent = "❌ Enter a valid number!";
+    if (isNaN(guess)) {
+        feedback.textContent = "Enter a number!";
         feedback.style.color = "#ef4444";
         return;
     }
 
-    attempts++;
+    if (guess === targetNumber) {
+        streak++;
 
-    if (userGuess === targetNumber) {
-        currentStreak++;
-
-        if (currentStreak > bestStreak) {
-            bestStreak = currentStreak;
-            localStorage.setItem('wiki_best_streak', bestStreak);
+        if (streak > best) {
+            best = streak;
+            localStorage.setItem("best_streak", best);
         }
 
-        updateStreakUI();
-
-        feedback.textContent =
-            `🎉 Correct! The answer was ${targetNumber}. Found in ${attempts} tries!`;
-
+        feedback.textContent = `Correct! It was ${targetNumber}`;
         feedback.style.color = "#22c55e";
 
-        endRound();
-    }
-    else if (userGuess < targetNumber) {
-        feedback.textContent = `📈 Higher than ${userGuess}!`;
+        document.getElementById("next").style.display = "block";
+        updateStats();
+    } else if (guess < targetNumber) {
+        feedback.textContent = "Higher 📈";
         feedback.style.color = "#38bdf8";
-        clearInput();
-    }
-    else {
-        feedback.textContent = `📉 Lower than ${userGuess}!`;
+    } else {
+        feedback.textContent = "Lower 📉";
         feedback.style.color = "#f43f5e";
-        clearInput();
     }
 }
 
 function giveUp() {
-    currentStreak = 0;
-    updateStreakUI();
+    streak = 0;
+    updateStats();
 
-    const feedback = document.getElementById('feedback-text');
+    document.getElementById("feedback").textContent =
+        `It was ${targetNumber}`;
 
-    feedback.textContent =
-        `🏳️ You gave up! The answer was ${targetNumber}.`;
+    document.getElementById("feedback").style.color = "#ef4444";
 
-    feedback.style.color = "#ef4444";
-
-    endRound();
+    document.getElementById("next").style.display = "block";
 }
 
-function clearInput() {
-    const input = document.getElementById('guess-input');
-    input.value = "";
-    input.focus();
-}
-
-function endRound() {
-    document.getElementById('guess-input').disabled = true;
-    document.getElementById('game-controls').style.display = "none";
-    document.getElementById('next-btn').style.display = "inline-block";
-}
+window.onload = loadArticle;
 </script>
+
 </body>
 </html>
