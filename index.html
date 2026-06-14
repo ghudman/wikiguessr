@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiki Number Guesser 🌐</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0b0f19;
+            color: #e2e8f0;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .game-card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 { color: #38bdf8; margin-top: 0; font-size: 1.8rem; margin-bottom: 5px; }
+        h3 { color: #94a3b8; font-weight: 400; margin-top: 5px; margin-bottom: 20px; }
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            font-weight: bold;
+        }
+        .streak { color: #22c55e; }
+        .best-streak { color: #eab308; }
+        .clue-box {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #38bdf8;
+            text-align: left;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .blank {
+            color: #fbbf24;
+            font-weight: bold;
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        input {
+            width: 70%;
+            padding: 12px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            border: 2px solid #475569;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        input:focus { border-color: #38bdf8; outline: none; }
+        .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        button {
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-submit { background: #38bdf8; color: #0f172a; }
+        .btn-giveup { background: #ef4444; color: white; }
+        .btn-next { background: #22c55e; color: white; width: 80%; margin: 0 auto; }
+        .feedback {
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-height: 28px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-card">
+        <h1>🌐 Wiki Number Guesser</h1>
+        <h3 id="article-title">Loading a mystery Wikipedia topic...</h3>
+        
+        <div class="stats-bar">
+            <div>🔥 Streak: <span id="current-streak" class="streak">0</span></div>
+            <div>🏆 Best: <span id="best-streak" class="best-streak">0</span></div>
+        </div>
+
+        <div class="clue-box" id="clue-text">Finding an interesting fact...</div>
+
+        <div id="game-controls" style="display: none;">
+            <input type="number" id="guess-input" placeholder="Your numeric guess">
+            <div class="btn-container">
+                <button class="btn-submit" onclick="checkGuess()">Submit Guess</button>
+                <button class="btn-giveup" onclick="giveUp()">Give Up 🏳️</button>
+            </div>
+        </div>
+        
+        <div class="feedback" id="feedback-text"></div>
+        <br>
+        <button id="next-btn" class="btn-next" onclick="loadWikiRound()" style="display: none;">Play Next Round ➡️</button>
+    </div>
+
+    <script>
+        let targetNumber = 0;
+        let originalText = "";
+        let attempts = 0;
+        let currentStreak = 0;
+        let bestStreak = parseInt(localStorage.getItem('wiki_best_streak')) || 0;
+
+        // Run immediately when page loads
+        window.onload = function() {
+            updateStreakUI();
+            loadWikiRound();
+        };
+
+        // Allow pressing Enter key to submit a guess
+        document.getElementById('guess-input').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') checkGuess();
+        });
+
+        function updateStreakUI() {
+            document.getElementById('current-streak').innerText = currentStreak;
+            document.getElementById('best-streak').innerText = bestStreak;
+        }
+
+        async function loadWikiRound() {
+            attempts = 0;
+            document.getElementById('game-controls').style.display = "none";
+            document.getElementById('next-btn').style.display = "none";
+            document.getElementById('feedback-text').innerText = "";
+            document.getElementById('guess-input').disabled = false;
+            document.getElementById('guess-input').value = "";
+            document.getElementById('article-title').innerText = "Scanning Wikipedia...";
+            document.getElementById('clue-text').innerText = "Extracting a numeric fact...";
+
+            try {
+                const res = await fetch('https://wikipedia.org');
+                const data = await res.json();
+                
+                const title = data.title;
+                const extract = data.extract;
+
+                // Match standalone integers with 2 to 6 digits
+                const matches = [...extract.matchAll(/\b(\d{2,6})\b/g)];
+
+                if (matches.length === 0) {
+                    loadWikiRound(); // Re-roll if no valid number found
+                    return;
+                }
+
+                const randomMatch = matches[Math.floor(Math.random() * matches.length)];
+                targetNumber = parseInt(randomMatch);
+                originalText = extract;
+
+                const maskedText = extract.replace(randomMatch, "<span class='blank'>[ ? ]</span>");
+
+                document.getElementById('article-title').innerText = `Topic: ${title}`;
+                document.getElementById('clue-text').innerHTML = `"${maskedText}"`;
+                document.getElementById('game-controls').style.display = "block";
+                document.getElementById('guess-input').focus();
+
+            } catch (error) {
+                document.getElementById('clue-text').innerText = "Failed loading Wikipedia data. Let's try again.";
+                document.getElementById('next-btn').style.display = "block";
+            }
+        }
+
+        function checkGuess() {
+            const inputField = document.getElementById('guess-input');
+            const userGuess = parseInt(inputField.value);
+            const feedback = document.getElementById('feedback-text');
+
+            if (isNaN(userGuess)) {
+                feedback.innerText = "❌ Enter a valid number!";
+                feedback.style.color = "#ef4444";
+                return;
+            }
+
+            attempts++;
+
+            if (userGuess === targetNumber) {
+                currentStreak++;
+                if (currentStreak > bestStreak) {
+                    bestStreak = currentStreak;
+                    localStorage.setItem('wiki_best_streak', bestStreak);
+                }
+                updateStreakUI();
+
+                feedback.innerText = `🎉 Splendid! The answer was ${targetNumber}. Found in ${attempts} tries!`;
+                feedback.style.color = "#22c55e";
+                endRound();
+            } else if (userGuess < targetNumber) {
+                feedback.innerText = `📈 Higher than ${userGuess}!`;
+                feedback.style.color = "#38bdf8";
+                clearInput();
+            } else {
+                feedback.innerText = `📉 Lower than ${userGuess}!`;
+                feedback.style.color = "#f43f5e";
+                clearInput();
+            }
+        }
+
+        function giveUp() {
+            currentStreak = 0;
+            updateStreakUI();
+
+            const feedback = document.getElementById('feedback-text');
+            feedback.innerText = `🏳️ You gave up! The correct answer was ${targetNumber}.`;
+            feedback.style.color = "#ef4444";
+            endRound();
+        }
+
+        function endRound() {
+            document.getElementById('guess-input').disabled = true;
+            document.getElementById('game-controls').style.display = "none";
+            document.getElementById('clue-text').innerText = originalText;
+            document.getElementById('next-btn').style.display = "block";
+            document.getElementById('next-btn').focus();
+        }
+
+        function clearInput() {
+            const inputField = document.getElementById('guess-input');
+            inputField.value = "";
+            inputField.focus();
+        }
+    </script>
+
+</body>
+</html>
