@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wiki Number Quest</title>
+<title>Wiki Number Daily</title>
 
 <style>
 body {
@@ -15,6 +15,7 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    overflow: hidden;
 }
 
 .card {
@@ -22,34 +23,45 @@ body {
     max-width: 650px;
     background: #111827;
     border-radius: 18px;
-    padding: 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    padding: 22px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    transform: scale(1);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.card.pop {
+    transform: scale(1.03);
+}
+
+.card.fade {
+    opacity: 0;
+    transform: translateY(20px);
 }
 
 h1 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     color: #38bdf8;
 }
 
 .sub {
     color: #94a3b8;
-    margin-bottom: 15px;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
 }
 
 .stats {
     display: flex;
     justify-content: space-between;
-    margin: 12px 0;
-    font-size: 0.9rem;
-    color: #cbd5e1;
+    font-size: 0.85rem;
+    margin: 10px 0;
 }
 
 .box {
     background: #0f172a;
-    padding: 16px;
+    padding: 14px;
     border-radius: 12px;
-    margin: 15px 0;
+    margin: 12px 0;
     line-height: 1.6;
     text-align: left;
 }
@@ -65,46 +77,35 @@ h1 {
 input {
     width: 100%;
     padding: 12px;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     border-radius: 10px;
     border: none;
     background: #0f172a;
     color: white;
     text-align: center;
-    margin-top: 10px;
 }
-
-button {
-    padding: 10px 14px;
-    border: none;
-    border-radius: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 8px;
-}
-
-.row {
-    display: flex;
-    gap: 10px;
-}
-
-.primary { background: #38bdf8; flex: 1; }
-.danger { background: #ef4444; color: white; }
-.next { background: #22c55e; width: 100%; }
 
 .feedback {
-    min-height: 24px;
-    margin-top: 10px;
+    min-height: 22px;
+    margin-top: 8px;
     font-weight: bold;
+    text-align: center;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 6px;
+    text-align: center;
 }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-    <h1>📚 Wiki Number Quest</h1>
-    <div class="sub" id="mode">Infinite Mode</div>
+<div class="card" id="card">
+    <h1>📱 Wiki Daily Number</h1>
+    <div class="sub">Tap / Swipe / Enter to play</div>
 
     <div class="stats">
         <div>🔥 Streak: <span id="streak">0</span></div>
@@ -113,35 +114,35 @@ button {
 
     <div class="box">
         <div id="title">Loading...</div>
-        <hr style="border:1px solid #1f2937; margin:10px 0;">
-        <div id="clue">Fetching Wikipedia...</div>
+        <hr style="border:1px solid #1f2937;">
+        <div id="clue">Loading Wikipedia...</div>
     </div>
 
     <input id="guess" type="number" placeholder="Guess the number..." />
 
-    <div class="row">
-        <button class="primary" onclick="checkGuess()">Submit</button>
-        <button class="danger" onclick="giveUp()">Give Up</button>
-    </div>
-
     <div class="feedback" id="feedback"></div>
-
-    <button class="next" id="next" onclick="nextRound()" style="display:none;">
-        Next Round ➜
-    </button>
+    <div class="hint" id="hint"></div>
 </div>
 
 <script>
 let targetNumber = 0;
 let streak = 0;
 let best = localStorage.getItem("best_streak") || 0;
+
 document.getElementById("best").textContent = best;
 
 /* -------------------------
-   SMART WIKI ENGINE
+   DAILY CHALLENGE (NO BACKEND)
 ------------------------- */
 
-let buffer = [];
+function getDailySeed() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+/* -------------------------
+   WIKI ENGINE
+------------------------- */
 
 async function fetchWiki() {
     const res = await fetch(
@@ -152,36 +153,35 @@ async function fetchWiki() {
 }
 
 function extractNumbers(text) {
-    const matches = text.match(/\b\d{1,6}\b/g);
-    if (!matches) return [];
+    const nums = text.match(/\b\d{1,6}\b/g);
+    if (!nums) return [];
 
-    return matches
-        .map(n => parseInt(n))
-        .filter(n => n >= 10);
+    return nums.map(n => parseInt(n)).filter(n => n >= 10);
 }
 
+/* smart pick */
 function score(n) {
     let s = 0;
-    if (n >= 1800 && n <= 2100) s += 100; // years
+    if (n >= 1800 && n <= 2100) s += 100;
     if (n >= 10 && n < 100000) s += 20;
-    if (n > 500000) s -= 50;
     return s;
 }
 
-function pickNumber(nums) {
-    const sorted = nums.sort((a,b) => score(b) - score(a));
-    return sorted[Math.floor(Math.random() * Math.min(5, sorted.length))];
+function pick(nums) {
+    const sorted = nums.sort((a,b)=>score(b)-score(a));
+    return sorted[Math.floor(Math.random() * Math.min(4, sorted.length))];
 }
 
-async function preload() {
-    let data, nums, chosen;
+/* preload */
+let buffer = [];
 
-    for (let i = 0; i < 5; i++) {
-        data = await fetchWiki();
-        nums = extractNumbers(data.extract || "");
+async function preload() {
+    for (let i = 0; i < 3; i++) {
+        const data = await fetchWiki();
+        const nums = extractNumbers(data.extract || "");
         if (!nums.length) continue;
 
-        chosen = pickNumber(nums);
+        const chosen = pick(nums);
         if (!chosen) continue;
 
         buffer.push({
@@ -198,63 +198,102 @@ async function preload() {
    GAME FLOW
 ------------------------- */
 
-function load() {
-    document.getElementById("feedback").textContent = "";
-    document.getElementById("next").style.display = "none";
+const card = document.getElementById("card");
 
-    let article = buffer.shift();
-
-    if (!article) {
-        setTimeout(load, 500);
-        return;
-    }
-
-    targetNumber = article.number;
-
-    const masked = article.text.replace(
-        new RegExp(`\\b${targetNumber}\\b`),
-        "<span class='blank'>[ ? ]</span>"
-    );
-
-    document.getElementById("title").textContent = article.title;
-    document.getElementById("clue").innerHTML = masked;
-
-    document.getElementById("guess").value = "";
-
-    preload();
+function vibrate(pattern) {
+    if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
-function checkGuess() {
-    const guess = parseInt(document.getElementById("guess").value);
+function load() {
+    card.classList.add("fade");
+
+    setTimeout(() => {
+        let article = buffer.shift();
+        if (!article) return setTimeout(load, 400);
+
+        targetNumber = article.number;
+
+        const masked = article.text.replace(
+            new RegExp(`\\b${targetNumber}\\b`),
+            "<span class='blank'>[ ? ]</span>"
+        );
+
+        document.getElementById("title").textContent = article.title;
+        document.getElementById("clue").innerHTML = masked;
+
+        document.getElementById("guess").value = "";
+        document.getElementById("feedback").textContent = "";
+        document.getElementById("hint").textContent = "";
+
+        preload();
+
+        card.classList.remove("fade");
+        card.classList.add("pop");
+
+        setTimeout(() => card.classList.remove("pop"), 200);
+    }, 200);
+}
+
+/* -------------------------
+   GAME LOGIC
+------------------------- */
+
+function updateStats() {
+    document.getElementById("streak").textContent = streak;
+    document.getElementById("best").textContent = best;
+}
+
+let attempts = 0;
+
+function check() {
+    const g = parseInt(document.getElementById("guess").value);
     const fb = document.getElementById("feedback");
+    const hint = document.getElementById("hint");
 
-    if (isNaN(guess)) {
-        fb.textContent = "Enter a number";
-        fb.style.color = "#ef4444";
-        return;
-    }
+    if (isNaN(g)) return;
 
-    if (guess === targetNumber) {
+    attempts++;
+
+    const diff = Math.abs(g - targetNumber);
+    const close = diff / targetNumber < 0.1;
+
+    if (g === targetNumber) {
         streak++;
         if (streak > best) {
             best = streak;
             localStorage.setItem("best_streak", best);
         }
 
-        fb.textContent = "Correct! 🎉";
+        fb.textContent = "🔥 Correct!";
         fb.style.color = "#22c55e";
 
-        document.getElementById("next").style.display = "block";
+        vibrate(150);
+
         updateStats();
-    } else if (guess < targetNumber) {
-        fb.textContent = "Higher 📈";
-        fb.style.color = "#38bdf8";
-    } else {
-        fb.textContent = "Lower 📉";
-        fb.style.color = "#f43f5e";
+
+        setTimeout(load, 600);
+        return;
+    }
+
+    fb.textContent = g < targetNumber ? "📈 Higher" : "📉 Lower";
+    fb.style.color = g < targetNumber ? "#38bdf8" : "#f43f5e";
+
+    if (attempts >= 2) {
+        if (targetNumber >= 1800 && targetNumber <= 2100)
+            hint.textContent = "Hint: likely a YEAR 📅";
+        else if (targetNumber >= 10000)
+            hint.textContent = "Hint: likely a COUNT 👥";
+        else
+            hint.textContent = "Hint: likely a MEASUREMENT 📏";
+    }
+
+    if (close) {
+        fb.textContent += " 🔥 VERY CLOSE!";
+        vibrate(50);
     }
 }
 
+/* give up */
 function giveUp() {
     streak = 0;
     updateStats();
@@ -262,17 +301,35 @@ function giveUp() {
     document.getElementById("feedback").textContent =
         `It was ${targetNumber}`;
 
-    document.getElementById("next").style.display = "block";
+    vibrate([100,50,100]);
+
+    setTimeout(load, 800);
 }
 
-function nextRound() {
-    load();
-}
+/* -------------------------
+   INPUT + MOBILE CONTROLS
+------------------------- */
 
-function updateStats() {
-    document.getElementById("streak").textContent = streak;
-    document.getElementById("best").textContent = best;
-}
+document.getElementById("guess").addEventListener("keydown", e => {
+    if (e.key === "Enter") check();
+});
+
+/* swipe to submit / skip */
+let touchStartY = 0;
+
+document.addEventListener("touchstart", e => {
+    touchStartY = e.changedTouches[0].screenY;
+});
+
+document.addEventListener("touchend", e => {
+    const dy = e.changedTouches[0].screenY - touchStartY;
+
+    if (Math.abs(dy) < 30) {
+        check(); // tap = submit
+    } else if (dy < -80) {
+        giveUp(); // swipe up = give up
+    }
+});
 
 /* -------------------------
    START
@@ -280,8 +337,6 @@ function updateStats() {
 
 window.onload = async function () {
     updateStats();
-    document.getElementById("mode").textContent = "Infinite Wikipedia Mode";
-
     await preload();
     await preload();
     load();
