@@ -1,381 +1,999 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wiki Number Quest - Addictive Mode</title>
-
+<title>Wiki Number Quest</title>
 <style>
-body {
-    margin: 0;
-    font-family: system-ui, sans-serif;
-    background: #0b0f19;
-    color: #e2e8f0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
 
-.card {
-    width: 92%;
-    max-width: 700px;
-    background: #111827;
-    border-radius: 18px;
-    padding: 22px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    transition: all 0.25s ease;
-}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #38bdf8;
-}
+  :root {
+    --bg:       #0b0e17;
+    --surface:  #131722;
+    --card:     #1a2030;
+    --border:   #252d3d;
+    --border2:  #2e3a50;
+    --purple:   #7c6dfa;
+    --purple2:  #a395fc;
+    --purple-bg:#1c1a3a;
+    --teal:     #1aab80;
+    --teal-bg:  #0d2620;
+    --coral:    #e05a3a;
+    --coral-bg: #2a1510;
+    --amber:    #d4930a;
+    --amber-bg: #261d08;
+    --text:     #e8eaf0;
+    --text2:    #8892a4;
+    --text3:    #4d5a6e;
+    --blank-bg: #342e6b;
+    --blank-txt:#b8b0ff;
+    --radius:   12px;
+    --radius-sm:8px;
+  }
 
-.sub {
-    color: #94a3b8;
-    font-size: 0.85rem;
-    margin-bottom: 10px;
-}
-
-.stats {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    margin: 10px 0;
-}
-
-.box {
-    background: #0f172a;
-    padding: 14px;
-    border-radius: 12px;
-    margin: 12px 0;
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 15px;
     line-height: 1.6;
-    text-align: left;
-}
+  }
 
-.blank {
-    background: #334155;
-    padding: 2px 8px;
+  /* ── LOADER ── */
+  #loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 28px;
+  }
+  .globe-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+  .globe-title span { color: var(--purple2); }
+  .globe-wrap {
+    position: relative;
+    width: 140px;
+    height: 140px;
+  }
+  .globe-wrap svg { width: 140px; height: 140px; }
+  .g-ring { stroke: var(--border2); fill: none; }
+  .g-ring-accent { stroke: #342e6b; fill: none; }
+  .g-spin {
+    animation: gspin 4s linear infinite;
+    transform-origin: 70px 70px;
+  }
+  .g-pulse { animation: gpulse 2s ease-in-out infinite; }
+  .g-pulse2 { animation: gpulse 2s ease-in-out infinite 0.6s; }
+  @keyframes gspin { to { transform: rotate(360deg); } }
+  @keyframes gpulse { 0%,100%{opacity:0.25} 50%{opacity:1} }
+
+  .loader-label {
+    font-size: 13px;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .dots {
+    display: flex;
+    gap: 7px;
+  }
+  .dots span {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--purple);
+    animation: db 1.3s ease-in-out infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.18s; }
+  .dots span:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes db { 0%,80%,100%{opacity:0.2;transform:scale(0.75)} 40%{opacity:1;transform:scale(1)} }
+
+  /* ── LAYOUT ── */
+  #game {
+    display: none;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+
+  /* ── HEADER ── */
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+  }
+  .hdr-brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hdr-brand .w-icon {
+    width: 28px; height: 28px;
+    background: var(--purple-bg);
     border-radius: 6px;
-    color: #fbbf24;
-    font-weight: bold;
-}
-
-input {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.05rem;
-    border-radius: 10px;
-    border: none;
-    background: #0f172a;
-    color: white;
-    text-align: center;
-}
-
-button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 8px;
-    border-radius: 10px;
-    border: none;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.primary { background: #38bdf8; }
-.danger { background: #ef4444; color: white; }
-.next { background: #22c55e; display: none; }
-
-.feedback {
-    min-height: 22px;
-    margin-top: 10px;
-    font-weight: bold;
-    text-align: center;
-}
-
-.hint {
-    font-size: 0.85rem;
-    color: #94a3b8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .hdr-sub {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+  .daily-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--purple-bg);
+    border: 1px solid #342e6b;
+    color: var(--purple2);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
     margin-top: 6px;
+    letter-spacing: 0.03em;
+  }
+  .mode-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .mode-btn {
+    padding: 6px 13px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--purple);
+    color: white;
+  }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 3px;
+  }
+  .stat-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  /* ── XP BAR ── */
+  .xp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .xp-lbl {
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+    min-width: 80px;
+  }
+  .xp-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .xp-fill {
+    height: 100%;
+    background: var(--purple);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  /* ── ARTICLE CARD ── */
+  .article-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .art-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+  .art-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .art-link {
+    font-size: 11px;
+    color: var(--purple2);
+    text-decoration: none;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .art-link:hover { opacity: 1; text-decoration: underline; }
+  .clue-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text2);
+  }
+  .blank {
+    display: inline-block;
+    background: var(--blank-bg);
+    color: var(--blank-txt);
+    padding: 1px 10px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+  .expand-btn {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+    display: none;
+  }
+  .expand-btn:hover { color: var(--text2); }
+
+  /* ── ATTEMPT DOTS ── */
+  .dots-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .a-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--border2);
+    transition: background 0.2s;
+  }
+  .a-dot.used { background: var(--purple); opacity: 0.5; }
+  .a-dot.win  { background: var(--teal); opacity: 1; }
+  .a-dot.lose { background: var(--coral); opacity: 1; }
+  .a-dot-lbl { font-size: 11px; color: var(--text3); margin-left: 2px; }
+
+  /* ── DESKTOP INPUT ── */
+  .desk-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  #guess {
+    flex: 1;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  #guess:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(124,109,250,0.15);
+  }
+  #guess::placeholder { color: var(--text3); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, transform 0.08s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--card); color: var(--text); }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--purple); border-color: var(--purple); color: white; }
+  .btn-primary:hover { background: #6a5ce8; color: white; }
+  .btn-danger { color: var(--coral); border-color: var(--border); }
+  .btn-danger:disabled { opacity: 0.35; cursor: default; }
+  .btn-next { background: var(--teal); border-color: var(--teal); color: white; width: 100%; margin-top: 8px; }
+  .btn-next:hover { background: #158a67; color: white; }
+  .btn-share { background: var(--purple-bg); border-color: #342e6b; color: var(--purple2); width: 100%; margin-top: 8px; }
+  .btn-share:hover { background: #231f4a; color: var(--purple2); }
+
+  /* ── MOBILE NUMPAD ── */
+  .numpad-display {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 11px 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+    margin-bottom: 8px;
+    min-height: 50px;
+    letter-spacing: 0.04em;
+  }
+  .numpad-display.empty { color: var(--text3); }
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .nk {
+    padding: 16px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif;
+    cursor: pointer;
     text-align: center;
-}
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background 0.1s, transform 0.07s;
+  }
+  .nk:active { background: var(--border2); transform: scale(0.94); }
+  .nk-del { font-size: 13px; color: var(--coral); font-family: inherit; }
+  .nk-go { background: var(--purple); border-color: var(--purple); color: white; font-size: 13px; font-family: inherit; }
+  .nk-go:active { background: #6a5ce8; }
+  .mobile-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+  .mobile-actions .btn { flex: 1; }
+
+  /* ── FEEDBACK ── */
+  .feedback {
+    min-height: 22px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .feedback.correct { color: var(--teal); }
+  .feedback.revealed { color: var(--coral); }
+  .hint-chip {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--amber-bg);
+    border: 1px solid #3a2d0e;
+    color: var(--amber);
+    border-radius: 20px;
+    padding: 2px 10px;
+    margin-bottom: 8px;
+  }
+  .reveal-box {
+    background: var(--coral-bg);
+    border: 1px solid #3d1c12;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #e08070;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .reveal-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 2px;
+  }
+
+  /* ── SHARE BANNER ── */
+  .share-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-top: 12px;
+    display: none;
+  }
+  .share-banner h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .share-banner p {
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 12px;
+  }
+  .share-preview {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--text);
+    white-space: pre;
+    margin-bottom: 10px;
+  }
+  .copy-confirm { font-size: 12px; color: var(--teal); margin-top: 6px; min-height: 18px; text-align: center; }
+  .countdown { font-size: 12px; color: var(--text3); text-align: center; margin-top: 8px; font-variant-numeric: tabular-nums; }
+
+  /* ── NEXT WRAP ── */
+  #next-wrap { display: none; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .stat-val { font-size: 20px; }
+    .hdr { flex-wrap: wrap; }
+  }
 </style>
 </head>
-
 <body>
 
-<div class="card" id="card">
-
-<h1>📱 Wiki Number Quest</h1>
-<div class="sub">Addictive Mode v2 — Streaks, XP & Flow</div>
-
-<div class="stats">
-    <div>🔥 Streak: <span id="streak">0</span></div>
-    <div>🏆 Best: <span id="best">0</span></div>
+<!-- LOADER -->
+<div id="loader">
+  <div class="globe-title">Wiki <span>Number</span> Quest</div>
+  <div class="globe-wrap">
+    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="70" cy="70" r="56" class="g-ring" stroke-width="1.2"/>
+      <ellipse cx="70" cy="70" rx="26" ry="56" class="g-ring" stroke-width="1.2"/>
+      <ellipse cx="70" cy="70" rx="56" ry="16" class="g-ring" stroke-width="1.2"/>
+      <ellipse cx="70" cy="70" rx="42" ry="12" class="g-ring-accent" stroke-width="1"/>
+      <ellipse cx="70" cy="70" rx="16" ry="56" class="g-ring-accent" stroke-width="1"/>
+      <line x1="14" y1="70" x2="126" y2="70" class="g-ring" stroke-width="1"/>
+      <line x1="70" y1="14" x2="70" y2="126" class="g-ring" stroke-width="1"/>
+      <g class="g-spin">
+        <circle cx="70" cy="14" r="5" fill="#7c6dfa"/>
+        <circle cx="126" cy="70" r="4" fill="#7c6dfa" opacity="0.6"/>
+        <circle cx="70" cy="126" r="3" fill="#7c6dfa" opacity="0.35"/>
+        <circle cx="14" cy="70" r="3.5" fill="#7c6dfa" opacity="0.45"/>
+      </g>
+      <g class="g-pulse">
+        <circle cx="44" cy="52" r="3.5" fill="#1aab80"/>
+        <circle cx="84" cy="44" r="3" fill="#1aab80"/>
+        <circle cx="100" cy="80" r="3.5" fill="#1aab80"/>
+      </g>
+      <g class="g-pulse2">
+        <circle cx="52" cy="90" r="2.5" fill="#1aab80"/>
+        <circle cx="70" cy="64" r="2.5" fill="#7c6dfa"/>
+        <circle cx="30" cy="74" r="2" fill="#7c6dfa" opacity="0.7"/>
+      </g>
+    </svg>
+  </div>
+  <div class="loader-label" id="loader-text">Fetching today's article...</div>
+  <div class="dots"><span></span><span></span><span></span></div>
 </div>
 
-<div class="stats">
-    <div>⭐ Level: <span id="level">1</span></div>
-    <div>⚡ XP: <span id="xp">0</span></div>
-</div>
+<!-- GAME -->
+<div id="game">
 
-<div class="box">
-    <div id="title">Loading...</div>
-    <hr style="border:1px solid #1f2937;">
-    <div id="clue">Fetching Wikipedia...</div>
-</div>
+  <!-- Header -->
+  <div class="hdr">
+    <div>
+      <div class="hdr-brand">
+        <div class="w-icon">🌐</div>
+        Wiki Number Quest
+      </div>
+      <div class="hdr-sub">Guess the missing number from Wikipedia</div>
+      <div class="daily-pill" id="daily-pill">📅 Daily #1</div>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="mode-daily" onclick="setMode('daily')">Daily</button>
+      <button class="mode-btn" id="mode-free" onclick="setMode('free')">Free play</button>
+    </div>
+  </div>
 
-<input id="guess" type="number" placeholder="Guess the number..." />
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-lbl">🔥 Streak</div><div class="stat-val" id="streak">0</div></div>
+    <div class="stat-card"><div class="stat-lbl">🏆 Best</div><div class="stat-val" id="best">0</div></div>
+    <div class="stat-card"><div class="stat-lbl">⭐ Level</div><div class="stat-val" id="level">1</div></div>
+    <div class="stat-card"><div class="stat-lbl">✅ Solved</div><div class="stat-val" id="solved">0</div></div>
+  </div>
 
-<button class="primary" onclick="check()">Submit</button>
-<button class="danger" onclick="giveUp()">Give Up</button>
-<button class="next" id="nextBtn" onclick="nextRound()">Next ➜</button>
+  <!-- XP -->
+  <div class="xp-row">
+    <div class="xp-lbl" id="xp-lbl">XP 0 / 5</div>
+    <div class="xp-track"><div class="xp-fill" id="xp-fill"></div></div>
+  </div>
 
-<div class="feedback" id="feedback"></div>
-<div class="hint" id="hint"></div>
+  <!-- Article -->
+  <div class="article-card" id="article-card">
+    <div style="color:var(--text3);font-size:13px;padding:8px 0">Loading article...</div>
+  </div>
+
+  <!-- Dots -->
+  <div class="dots-row" id="dots-row"></div>
+
+  <!-- Desktop input -->
+  <div id="desktop-controls">
+    <div class="desk-input-row">
+      <input id="guess" type="number" placeholder="Your guess..." autocomplete="off"/>
+      <button class="btn btn-primary" onclick="check()">Submit</button>
+      <button class="btn btn-danger" id="give-up-btn" onclick="giveUp()">Give up</button>
+    </div>
+  </div>
+
+  <!-- Mobile numpad -->
+  <div id="mobile-controls" style="display:none">
+    <div class="numpad-display empty" id="numpad-display">0</div>
+    <div class="numpad">
+      <div class="nk" onclick="nk('7')">7</div>
+      <div class="nk" onclick="nk('8')">8</div>
+      <div class="nk" onclick="nk('9')">9</div>
+      <div class="nk" onclick="nk('4')">4</div>
+      <div class="nk" onclick="nk('5')">5</div>
+      <div class="nk" onclick="nk('6')">6</div>
+      <div class="nk" onclick="nk('1')">1</div>
+      <div class="nk" onclick="nk('2')">2</div>
+      <div class="nk" onclick="nk('3')">3</div>
+      <div class="nk nk-del" onclick="nkDel()">⌫ Del</div>
+      <div class="nk" onclick="nk('0')">0</div>
+      <div class="nk nk-go" onclick="check()">✓ Go</div>
+    </div>
+    <div class="mobile-actions">
+      <button class="btn btn-danger" id="give-up-btn-m" onclick="giveUp()">Give up</button>
+    </div>
+  </div>
+
+  <!-- Feedback -->
+  <div class="feedback" id="feedback"></div>
+  <div id="hint-area"></div>
+  <div class="reveal-box" id="reveal-box">
+    The answer was
+    <div class="reveal-num" id="reveal-num"></div>
+  </div>
+
+  <!-- Next / Share -->
+  <div id="next-wrap">
+    <button class="btn btn-next" id="next-btn" onclick="nextRound()">Next article →</button>
+    <button class="btn btn-share" id="share-btn" onclick="openShare()" style="display:none">Share result ↗</button>
+  </div>
+
+  <!-- Share banner -->
+  <div class="share-banner" id="share-banner">
+    <h3 id="banner-title">Today's puzzle complete!</h3>
+    <p id="banner-sub">Come back tomorrow for a new daily puzzle.</p>
+    <div class="share-preview" id="share-preview"></div>
+    <button class="btn btn-share" onclick="copyShare()" style="width:100%">📋 Copy to clipboard</button>
+    <div class="copy-confirm" id="copy-confirm"></div>
+    <div class="countdown" id="countdown"></div>
+  </div>
 
 </div>
 
 <script>
-
-/* -------------------------
-   STATE
-------------------------- */
-
-let targetNumber = 0;
-let streak = 0;
-let best = localStorage.getItem("best_streak") || 0;
-
-let xp = 0;
-let level = 1;
-
-let attempts = 0;
-
-document.getElementById("best").textContent = best;
-
-/* -------------------------
-   VIBRATION
-------------------------- */
-
-function vibrate(p) {
-    if (navigator.vibrate) navigator.vibrate(p);
+// ── DEVICE DETECTION ──
+const isMobile = window.matchMedia('(max-width:600px)').matches || ('ontouchstart' in window && window.innerWidth < 700);
+if (isMobile) {
+  document.getElementById('desktop-controls').style.display = 'none';
+  document.getElementById('mobile-controls').style.display = 'block';
 }
 
-/* -------------------------
-   WIKI ENGINE
-------------------------- */
+// ── STATE ──
+let targetNumber = 0, streak = 0, best = +localStorage.getItem('wnq_best') || 0;
+let xp = 0, level = 1, solved = 0, attempts = 0, maxAttempts = 6, done = false;
+let buffer = [], fullClueText = '', clueShort = true;
+let numpadVal = '', guessHistory = [], mode = 'daily';
+let countdownTimer = null;
 
+document.getElementById('best').textContent = best;
+
+// ── VIBRATION ──
+function vib(p) { if (navigator.vibrate) navigator.vibrate(p); }
+
+// ── DAILY SEED ──
+const EPOCH = new Date('2025-01-01T00:00:00Z');
+function todayNum() {
+  const n = new Date();
+  const utc = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+  return Math.floor((utc - EPOCH.getTime()) / 86400000) + 1;
+}
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ── NUMPAD ──
+function nk(d) {
+  if (done) return;
+  if (numpadVal.length >= 7) return;
+  numpadVal += d;
+  updateNumpad();
+}
+function nkDel() {
+  numpadVal = numpadVal.slice(0, -1);
+  updateNumpad();
+}
+function updateNumpad() {
+  const el = document.getElementById('numpad-display');
+  if (!numpadVal) { el.textContent = '0'; el.classList.add('empty'); }
+  else { el.textContent = numpadVal; el.classList.remove('empty'); }
+}
+function getGuess() {
+  return isMobile ? (parseInt(numpadVal) || NaN) : parseInt(document.getElementById('guess').value);
+}
+
+// ── WIKI FETCH ──
 async function fetchWiki() {
-    const res = await fetch(
-        "https://en.wikipedia.org/api/rest_v1/page/random/summary",
-        { cache: "no-store" }
-    );
-    return await res.json();
+  const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' });
+  return r.json();
 }
-
 function extractNumbers(text) {
-    const nums = text.match(/\b\d{1,6}\b/g);
-    if (!nums) return [];
-    return nums.map(n => parseInt(n)).filter(n => n >= 10);
+  const m = text.match(/\b\d{1,6}\b/g);
+  if (!m) return [];
+  return m.map(Number).filter(n => n >= 10);
 }
-
-/* -------------------------
-   SMART PICK
-------------------------- */
-
-function score(n) {
-    let s = 0;
-    if (n >= 1700 && n <= 2100) s += 120;
-    if (n >= 100000) s += 60;
-    if (n >= 10 && n < 100000) s += 30;
-    return s;
+function scoreNum(n) {
+  let s = 0;
+  if (n >= 1700 && n <= 2100) s += 120;
+  if (n >= 100000) s += 60;
+  if (n >= 10 && n < 100000) s += 30;
+  return s;
 }
-
-function pick(nums) {
-    const sorted = nums.sort((a,b)=>score(b)-score(a));
-    return sorted[Math.floor(Math.random() * Math.min(5, sorted.length))];
+function pickNum(nums, rng) {
+  const s = [...nums].sort((a, b) => scoreNum(b) - scoreNum(a));
+  const r = rng ? rng() : Math.random();
+  return s[Math.floor(r * Math.min(5, s.length))];
 }
-
-/* -------------------------
-   PRELOAD
-------------------------- */
-
-let buffer = [];
 
 async function preload() {
-    for (let i = 0; i < 3; i++) {
-        const data = await fetchWiki();
-        const nums = extractNumbers(data.extract || "");
-        if (!nums.length) continue;
-
-        buffer.push({
-            title: data.title,
-            text: data.extract,
-            number: pick(nums)
-        });
-
-        if (buffer.length > 3) buffer.shift();
-    }
+  while (buffer.length < 4) {
+    try {
+      const d = await fetchWiki();
+      const nums = extractNumbers(d.extract || '');
+      if (!nums.length) continue;
+      buffer.push({ title: d.title, text: d.extract, number: pickNum(nums), url: d.content_urls?.desktop?.page });
+    } catch (e) {}
+  }
 }
 
-/* -------------------------
-   LEVEL SYSTEM
-------------------------- */
-
-function addXP(amount) {
-    xp += amount;
-
-    if (xp >= level * 5) {
-        xp = 0;
-        level++;
-        vibrate([50, 30, 50]);
-    }
-
-    document.getElementById("xp").textContent = xp;
-    document.getElementById("level").textContent = level;
+async function fetchDailyArticle() {
+  const dayN = todayNum();
+  const rng = mulberry32(dayN * 2654435761);
+  const skip = Math.floor(rng() * 4) + 2;
+  let art = null;
+  for (let i = 0; i < skip + 12; i++) {
+    try {
+      const d = await fetchWiki();
+      const nums = extractNumbers(d.extract || '');
+      if (!nums.length) continue;
+      art = { title: d.title, text: d.extract, number: pickNum(nums, rng), url: d.content_urls?.desktop?.page };
+      if (i >= skip - 1) break;
+    } catch (e) {}
+  }
+  return art;
 }
 
-/* -------------------------
-   GAME FLOW
-------------------------- */
+// ── MODE ──
+function setMode(m) {
+  mode = m;
+  document.getElementById('mode-daily').classList.toggle('active', m === 'daily');
+  document.getElementById('mode-free').classList.toggle('active', m === 'free');
+  document.getElementById('daily-pill').style.display = m === 'daily' ? 'inline-flex' : 'none';
+  document.getElementById('share-banner').style.display = 'none';
+  if (countdownTimer) clearInterval(countdownTimer);
+  load();
+}
 
-function load() {
-    const article = buffer.shift();
-    if (!article) return setTimeout(load, 300);
+// ── XP ──
+function addXP(amt) {
+  xp += amt;
+  const need = level * 5;
+  if (xp >= need) { xp -= need; level++; vib([50, 30, 50]); }
+  document.getElementById('xp-fill').style.width = Math.round((xp / (level * 5)) * 100) + '%';
+  document.getElementById('xp-lbl').textContent = `XP ${xp} / ${level * 5}`;
+  document.getElementById('level').textContent = level;
+}
 
-    targetNumber = article.number;
-    attempts = 0;
+// ── DOTS ──
+function renderDots() {
+  const c = document.getElementById('dots-row');
+  c.innerHTML = '';
+  for (let i = 0; i < maxAttempts; i++) {
+    const d = document.createElement('div');
+    let cls = 'a-dot';
+    if (i < attempts) {
+      if (done && i === attempts - 1) cls += guessHistory[guessHistory.length - 1] === 'correct' ? ' win' : ' lose';
+      else cls += ' used';
+    }
+    d.className = cls;
+    c.appendChild(d);
+  }
+  const lbl = document.createElement('span');
+  lbl.className = 'a-dot-lbl';
+  lbl.textContent = `${attempts}/${maxAttempts}`;
+  c.appendChild(lbl);
+}
 
-    const masked = article.text.replace(
-        new RegExp(`\\b${targetNumber}\\b`),
-        "<span class='blank'>[ ? ]</span>"
-    );
+// ── CLUE ──
+function renderClue(text, num, full) {
+  const re = new RegExp(`\\b${num}\\b`);
+  const masked = text.replace(re, `<span class="blank">[ ? ]</span>`);
+  const words = masked.split(' ');
+  if (full || words.length <= 55) return masked;
+  return words.slice(0, 55).join(' ') + '…';
+}
+function toggleClue() {
+  clueShort = !clueShort;
+  document.getElementById('clue-body').innerHTML = renderClue(fullClueText, targetNumber, !clueShort);
+  document.getElementById('expand-btn').textContent = clueShort ? 'Show more' : 'Show less';
+}
 
-    document.getElementById("title").textContent = article.title;
-    document.getElementById("clue").innerHTML = masked;
+// ── LOAD ──
+async function load() {
+  done = false; attempts = 0; guessHistory = []; clueShort = true;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('hint-area').innerHTML = '';
+  document.getElementById('reveal-box').style.display = 'none';
+  document.getElementById('next-wrap').style.display = 'none';
+  document.getElementById('share-banner').style.display = 'none';
+  document.getElementById('copy-confirm').textContent = '';
+  document.getElementById('article-card').innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">Loading article...</div>';
+  renderDots();
 
-    document.getElementById("guess").value = "";
-    document.getElementById("feedback").textContent = "";
-    document.getElementById("hint").textContent = "";
-    document.getElementById("nextBtn").style.display = "none";
-
+  let art;
+  if (mode === 'daily') {
+    document.getElementById('daily-pill').textContent = `📅 Daily #${todayNum()}`;
+    art = await fetchDailyArticle();
+  } else {
+    if (!buffer.length) await preload();
+    art = buffer.shift();
     preload();
+  }
+
+  if (!art) { setTimeout(load, 400); return; }
+  targetNumber = art.number;
+  fullClueText = art.text;
+
+  const linkHtml = art.url
+    ? ` <a class="art-link" href="${art.url}" target="_blank">↗ Wikipedia</a>`
+    : '';
+  document.getElementById('article-card').innerHTML = `
+    <div class="art-meta">
+      <div class="art-name">${art.title}</div>${linkHtml}
+    </div>
+    <div class="clue-text" id="clue-body">${renderClue(art.text, art.number, false)}</div>
+    <button class="expand-btn" id="expand-btn" onclick="toggleClue()"
+      style="${art.text.split(' ').length > 55 ? 'display:block' : 'display:none'}">Show more</button>
+  `;
+
+  if (!isMobile) {
+    document.getElementById('guess').value = '';
+    setTimeout(() => document.getElementById('guess').focus(), 60);
+  } else {
+    numpadVal = '';
+    updateNumpad();
+  }
+  renderDots();
 }
 
-/* -------------------------
-   HINT ENGINE
-------------------------- */
-
-function hint(n) {
-    if (n >= 1700 && n <= 2100) return "📅 Year detected";
-    if (n >= 100000) return "👥 Large population/count";
-    if (n >= 100) return "📏 Measurement scale";
-    return "🔢 General number";
+// ── HINT ──
+function hintText(n) {
+  if (n >= 1700 && n <= 2100) return '📅 Hint: likely a year';
+  if (n >= 100000) return '👥 Hint: large population or count';
+  if (n >= 1000) return '🔢 Hint: thousands range';
+  if (n >= 100) return '🔢 Hint: hundreds range';
+  return '🔢 Hint: small number (10–99)';
 }
 
-/* -------------------------
-   GAME LOGIC
-------------------------- */
-
-function updateStats() {
-    document.getElementById("streak").textContent = streak;
-    document.getElementById("best").textContent = best;
+// ── SHARE ──
+function buildShareText(won) {
+  const attStr = won ? `${attempts}/${maxAttempts}` : `X/${maxAttempts}`;
+  let blocks = '';
+  for (let i = 0; i < maxAttempts; i++) {
+    const g = guessHistory[i];
+    if (!g) { blocks += '⬜'; continue; }
+    if (g === 'correct') blocks += '🟩';
+    else if (g === 'hot') blocks += '🟨';
+    else if (g === 'warm') blocks += '🟧';
+    else blocks += '⬛';
+  }
+  const tag = mode === 'daily' ? `Daily #${todayNum()}` : 'Free play';
+  return `Wiki Number Quest — ${tag}\n${attStr}\n\n${blocks}\n\nwiki-number-quest.game`;
 }
 
+function openShare() {
+  const won = guessHistory[guessHistory.length - 1] === 'correct';
+  document.getElementById('share-preview').textContent = buildShareText(won);
+  document.getElementById('banner-title').textContent = mode === 'daily' ? "Today's puzzle complete!" : 'Round complete!';
+  document.getElementById('banner-sub').textContent = mode === 'daily' ? 'Come back tomorrow for a new daily.' : 'Share your result!';
+  document.getElementById('share-banner').style.display = 'block';
+  if (mode === 'daily') {
+    tickCountdown();
+    countdownTimer = setInterval(tickCountdown, 1000);
+  } else {
+    document.getElementById('countdown').textContent = '';
+  }
+  document.getElementById('share-banner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function tickCountdown() {
+  const now = new Date();
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const diff = tomorrow - now;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  document.getElementById('countdown').textContent = `Next daily in ${h}h ${m}m ${s}s`;
+}
+
+async function copyShare() {
+  const txt = document.getElementById('share-preview').textContent;
+  try {
+    await navigator.clipboard.writeText(txt);
+    document.getElementById('copy-confirm').textContent = '✓ Copied!';
+  } catch (e) {
+    document.getElementById('copy-confirm').textContent = 'Select the text above and copy manually.';
+  }
+}
+
+// ── END ROUND ──
+function endRound(won) {
+  done = true;
+  document.getElementById('next-wrap').style.display = 'block';
+  document.getElementById('share-btn').style.display = 'flex';
+  if (mode === 'daily') {
+    document.getElementById('next-btn').style.display = 'none';
+    setTimeout(openShare, 700);
+  }
+  const gu = document.getElementById('give-up-btn'); if (gu) gu.disabled = true;
+  const gum = document.getElementById('give-up-btn-m'); if (gum) gum.disabled = true;
+  renderDots();
+}
+
+// ── CHECK ──
 function check() {
-    const g = parseInt(document.getElementById("guess").value);
-    const fb = document.getElementById("feedback");
+  if (done) return;
+  const g = getGuess();
+  const fb = document.getElementById('feedback');
+  if (isNaN(g) || g <= 0) { fb.textContent = 'Enter a number first.'; return; }
 
-    if (isNaN(g)) {
-        fb.textContent = "Enter a number";
-        vibrate(30);
-        return;
-    }
+  attempts = Math.min(attempts + 1, maxAttempts);
+  const diff = Math.abs(g - targetNumber);
+  const pct = diff / targetNumber;
 
-    attempts++;
+  if (g === targetNumber) {
+    guessHistory.push('correct');
+    streak++; best = Math.max(best, streak);
+    localStorage.setItem('wnq_best', best);
+    solved++; addXP(2 + streak);
+    fb.innerHTML = '✓ Correct!';
+    fb.className = 'feedback correct';
+    document.getElementById('streak').textContent = streak;
+    document.getElementById('best').textContent = best;
+    document.getElementById('solved').textContent = solved;
+    vib([80, 40, 80]);
+    renderDots();
+    endRound(true);
+    return;
+  }
 
-    const diff = Math.abs(g - targetNumber);
-    const close = diff / targetNumber < 0.1;
+  if (pct < 0.05) guessHistory.push('hot');
+  else if (pct < 0.20) guessHistory.push('warm');
+  else guessHistory.push('miss');
 
-    if (g === targetNumber) {
+  let dir = g < targetNumber ? 'Too low' : 'Too high';
+  if (pct < 0.05) dir += ' — scorching hot!';
+  else if (pct < 0.15) dir += ' — very close';
+  else if (pct < 0.35) dir += ' — getting warmer';
+  fb.textContent = dir;
+  fb.className = 'feedback';
 
-        streak++;
-        best = Math.max(best, streak);
-        localStorage.setItem("best_streak", best);
+  if (attempts >= 2) document.getElementById('hint-area').innerHTML = `<div class="hint-chip">${hintText(targetNumber)}</div>`;
+  addXP(1); vib(pct < 0.1 ? 25 : 10);
+  renderDots();
 
-        addXP(2 + streak);
-
-        fb.textContent = "🔥 Correct!";
-        fb.style.color = "#22c55e";
-
-        vibrate([80,40,80]);
-
-        updateStats();
-        document.getElementById("nextBtn").style.display = "block";
-        return;
-    }
-
-    fb.textContent = g < targetNumber ? "📈 Higher" : "📉 Lower";
-
-    if (attempts >= 2) {
-        document.getElementById("hint").textContent = hint(targetNumber);
-        addXP(1);
-    }
-
-    if (close) {
-        fb.textContent += " 🔥 VERY CLOSE!";
-        vibrate(25);
-    } else {
-        vibrate(10);
-    }
+  if (attempts >= maxAttempts) {
+    guessHistory[guessHistory.length - 1] = 'miss';
+    streak = 0; document.getElementById('streak').textContent = 0;
+    fb.textContent = 'Out of attempts.';
+    fb.className = 'feedback revealed';
+    document.getElementById('reveal-num').textContent = targetNumber;
+    document.getElementById('reveal-box').style.display = 'block';
+    endRound(false);
+  }
 }
 
-/* -------------------------
-   GIVE UP
-------------------------- */
-
+// ── GIVE UP ──
 function giveUp() {
-    streak = 0;
-    updateStats();
-
-    document.getElementById("feedback").textContent =
-        `💀 It was ${targetNumber}`;
-
-    vibrate([120,60,120]);
-
-    document.getElementById("nextBtn").style.display = "block";
+  if (done) return;
+  guessHistory.push('miss');
+  streak = 0; document.getElementById('streak').textContent = 0;
+  document.getElementById('feedback').textContent = 'You gave up.';
+  document.getElementById('feedback').className = 'feedback revealed';
+  document.getElementById('reveal-num').textContent = targetNumber;
+  document.getElementById('reveal-box').style.display = 'block';
+  vib([120, 60, 120]);
+  endRound(false);
 }
 
-/* -------------------------
-   NEXT
-------------------------- */
+function nextRound() { load(); }
 
-function nextRound() {
-    load();
+// ── KEYBOARD ──
+if (!isMobile) {
+  document.getElementById('guess').addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
 }
 
-/* -------------------------
-   INPUT
-------------------------- */
-
-document.getElementById("guess").addEventListener("keydown", e => {
-    if (e.key === "Enter") check();
-});
-
-/* -------------------------
-   START
-------------------------- */
-
-window.onload = async function () {
-    updateStats();
-    await preload();
-    await preload();
-    load();
-};
-
+// ── INIT ──
+(async function init() {
+  await preload();
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  setMode('daily');
+})();
 </script>
-
 </body>
 </html>
